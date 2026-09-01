@@ -20,16 +20,15 @@ The prior contract wrapped web fetch plus nondeterministic JSON LLM classificati
 
 | Operation | Result |
 |---|---|
-| Fresh deployment | PASS; tx `0x4a5c6bba794552a58ff0f89a2907a84046831ab6067fed15f6e744851b720a86` |
-| Contract | `0x13B7Fd84d8d660f89a57C17b0f686553Fc265796` |
+| Fresh deployment | PASS; tx `0x5593d49489da828b9603200bf154bcf598fea00e9a3482622e6c0cac89677d79` |
+| Contract | `0xd44f06159D9428735d09447d1c0E88D5DA8396CD` |
 | Schema | PASS via `npx --yes genlayer schema` |
-| Service registration | ACCEPTED; tx `0xcc45b279accfff3f0da04f9478142024bc0ca9a6930d7f4d75c3ec83b3787cf8` |
-| Source update | ACCEPTED; tx `0x71f509e02cdf2b02b348f00002b680a37db368d2710bcbed7ba737634d85669f` |
-| Snapshot | FINAL/MAJORITY_AGREE but contract error `snapshot evidence is not sufficient`; tx `0x5a1d534d3de416c5e2b1254784ca90705985a164f080689963833f750517fddc` |
+| Service registration | ACCEPTED; tx `0xff27d26365517707d2827f2bbf21362fc0a9a118013e793a29f85254a680b930` |
+| Snapshot attempts | Pending/transport timeouts on first calls; no finalized hash captured |
 | Action/authorization/change | Not run after snapshot refusal; no false success claimed |
 
 ## Local validation
 
 `npm ci`, `npm run typecheck`, `npm run lint`, `npm test` (2 tests), and `npm run build` pass locally. GitHub Actions is GREEN for commit `2d9e1662923cefdbec521f6060defa7fc95c4a9f` (run [33548708977](https://github.com/Bibidee/termsrail/actions/runs/33548708977)); all npm steps completed. Direct Mode contract tests are skipped because this environment has neither the Python GenLayer test runtime nor a callable `genlayer test` command.
 
-Frozen source SHA-256: `071F6DC030964ED0D6D453D2883E34AA1130AD7E7578F99906F4B20F1D0168A8`.
+Frozen source SHA-256: `812F03471BB221F0C7EE2871DD2E5158B53255735701729F234E679E0C079BE0`.

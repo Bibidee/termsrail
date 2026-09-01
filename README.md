@@ -1,6 +1,6 @@
 # TERMSRAIL
 
-TermsRail is a Next.js dApp and GenLayer Intelligent Contract for consensus-backed policy execution gates. It keeps three consensus paths distinct: policy snapshot extraction, structured action authorization, and material policy-change detection.
+TermsRail is a Next.js dApp and GenLayer Intelligent Contract for consensus-backed policy execution gates. Policy snapshot extraction and material policy-change detection use semantic consensus; structured action authorization is deterministic derivation over the accepted snapshot.
 
 ## Run
 
@@ -13,7 +13,7 @@ The frontend targets Studionet (chain `61999`, RPC `https://studio.genlayer.com/
 
 ## Contract
 
-`contracts/termsrail.py` contains service/source registration, URL hardening, source and policy versioning, append-only histories, bounded observations from `gl.nondet.web.render`, deterministic verdict precedence, change invalidation, TTL checks and the fail-closed `is_action_authorized` gate.
+`contracts/termsrail.py` contains service/source registration, URL hardening, per-source/per-dimension evidence states, append-only histories, bounded observations from `gl.nondet.web.render`, deterministic verdict precedence, change invalidation, TTL checks and the fail-closed `is_action_authorized` gate.
 
 ## Verification
 
