@@ -37,6 +37,7 @@ The prior contract wrapped web fetch plus nondeterministic JSON LLM classificati
 
 `npm ci`, `npm run typecheck`, `npm run lint`, `npm test` (2 tests), and `npm run build` pass locally. GitHub Actions is GREEN for final HEAD `755f2e6c3566df60c9679001ac382c1fcea6fed6` (run [33552843628](https://github.com/Bibidee/termsrail/actions/runs/33552843628)); all npm steps completed. Direct Mode installation was attempted, but Python/pip and a callable `genlayer test` command are unavailable in this environment.
 
-Frozen source SHA-256: `75EA46068E9240E373DDB932762D9B0051D9DB835690DAA2687220CCAB8345A2`.
+Frozen source SHA-256: `2FE67026251071D533FF7450AC33EF65E925CECFD865EA8D325ACBC8E30F73E8`.
 
 Latest source-change deployment: `0xb6000FC55e4B044E71e686a6F315eB698025f697`, tx `0xa4f0f8ae2893ce3ad37762756ef8f81f83820cda4bfadcc1c41bfa097567dda4`; schema PASS. Fresh service tx `0x446f5ea68dda779b0f203bfe831bd74fbb43097c5988a9fcf02ecbd743d4348b`; successful snapshot tx `0x88c47dacac10af4486ca7a90f09a2e4c18a14e61d09d7f6ec582fc98fefd893a`.
+Latest linter-compliant deployment: `0x32BF83c02eAF4096dC8D7f0760BAb38c089CbB7a`, tx `0xaac13e2c07d7bf52d847b9cb21d7cc904ddc69cae5ae04fbc8359c34366ea126`.
