@@ -30,6 +30,6 @@ The prior contract wrapped web fetch plus nondeterministic JSON LLM classificati
 
 ## Local validation
 
-`npm ci`, `npm run typecheck`, `npm run lint`, `npm test` (2 tests), and `npm run build` pass locally. Direct Mode contract tests are skipped because this environment has neither the Python GenLayer test runtime nor a callable `genlayer test` command. GitHub-hosted CI status is not claimed until independently confirmed.
+`npm ci`, `npm run typecheck`, `npm run lint`, `npm test` (2 tests), and `npm run build` pass locally. GitHub Actions is GREEN for commit `2d9e1662923cefdbec521f6060defa7fc95c4a9f` (run [33548708977](https://github.com/Bibidee/termsrail/actions/runs/33548708977)); all npm steps completed. Direct Mode contract tests are skipped because this environment has neither the Python GenLayer test runtime nor a callable `genlayer test` command.
 
 Frozen source SHA-256: `071F6DC030964ED0D6D453D2883E34AA1130AD7E7578F99906F4B20F1D0168A8`.
