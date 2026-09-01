@@ -1,0 +1,3 @@
+'use client';
+import {useState} from 'react';
+export default function WalletButton(){const [address,setAddress]=useState(''); const connect=async()=>{const provider=(window as Window & {ethereum?:{request:(a:{method:string;params?:unknown[]})=>Promise<unknown>}}).ethereum;if(!provider){alert('No injected EIP-1193 wallet found.');return}try{const [account]=await provider.request({method:'eth_requestAccounts'}) as string[]; setAddress(account); await provider.request({method:'wallet_switchEthereumChain',params:[{chainId:'0xf22f'}]});}catch(e){console.error(e)}};return <button className="wallet" onClick={connect}>{address?`${address.slice(0,6)}…${address.slice(-4)}`:'CONNECT WALLET'}</button>}
