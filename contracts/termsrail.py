@@ -21,14 +21,16 @@ def clean(value,limit=512):
 def url_ok(value):
     value=clean(value,2048)
     if not re.match(r"^https://[^/\s]+(?:/[^\s]*)?$",value,re.I) or "@" in value: raise gl.vm.UserError("HTTPS URL without credentials required")
-    parts=value.split("/",3); host=parts[2].split(":")[0].lower().rstrip(".")
+    parts=value.split("/",3); authority=parts[2]; host=(authority[1:authority.find("]")] if authority.startswith("[") and "]" in authority else authority.split(":")[0]).lower().rstrip(".")
     if host in ("localhost","0.0.0.0","::1") or host.endswith(".localhost"): raise gl.vm.UserError("private or loopback URL rejected")
     octets=host.split(".")
     if len(octets)==4 and all(x.isdigit() and 0<=int(x)<=255 for x in octets):
         ip=tuple(int(x) for x in octets)
         if ip[0]==10 or (ip[0]==172 and 16<=ip[1]<=31) or (ip[0]==192 and ip[1]==168) or ip[0]==127 or (ip[0]==169 and ip[1]==254): raise gl.vm.UserError("private or loopback URL rejected")
-    if host.startswith(("fc","fd","fe8","fe9","fea","feb")): raise gl.vm.UserError("private or loopback URL rejected")
-    return parts[0].lower()+"//"+host+("/"+parts[3] if len(parts)>3 else "")
+    if host.startswith(("fc","fd","fe8","fe9","fea","feb")) or host=="::": raise gl.vm.UserError("private or loopback URL rejected")
+    normalized_authority=("["+host+"]" if authority.startswith("[") else host)
+    if not authority.startswith("[") and ":" in authority: normalized_authority += ":"+authority.rsplit(":",1)[1]
+    return parts[0].lower()+"//"+normalized_authority+("/"+parts[3] if len(parts)>3 else "")
 def digest(value): return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(",",":")).encode()).hexdigest()
 def now(): return int(datetime.now(timezone.utc).timestamp())
 def items(value):
@@ -110,7 +112,7 @@ class TermsRail(gl.Contract):
                     if not text.strip(): text=gl.nondet.web.render(source,mode="html")
                     state="EMPTY" if not text.strip() else "OK"; unavailable_roles += [role] if state!="OK" else []; evidence.append({"role":role,"fetch_state":state,"text":text[:12000]})
                 except Exception: unavailable_roles.append(role); evidence.append({"role":role,"fetch_state":"UNAVAILABLE","text":""})
-            if len(unavailable_roles)==len(value["source_roles"]): return {d:"UNKNOWN" for d in DIMENSIONS}|{"evidence_state":"UNAVAILABLE","reason_code":"NO_USABLE_SOURCES"}
+            if len(unavailable_roles)==len(value["source_roles"]): return {d:"UNKNOWN" for d in DIMENSIONS}|{"evidence_state":"UNAVAILABLE","dimension_evidence":{d:"UNAVAILABLE" for d in DIMENSIONS},"reason_code":"NO_USABLE_SOURCES"}
             try: raw=gl.nondet.exec_prompt(prompt+"\nEVIDENCE:"+json.dumps(evidence),response_format="json")
             except Exception: raw={}
             return normalize(raw,unavailable_roles)

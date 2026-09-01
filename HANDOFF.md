@@ -2,7 +2,7 @@
 
 ## Status
 
-READY FOR SUBMISSION pending the final hosted Studionet lifecycle on the frozen source. Direct Mode and GenVM static lint are now part of hosted CI.
+NOT READY — implementation is being finalized; awaiting final exact-source schema, deployment, and Studionet lifecycle.
 
 ## Root cause of `0xb96d1aa3121e2eefe2d2c9823bf740a7a066cc201e391fde3b27529ed918bd61`
 
