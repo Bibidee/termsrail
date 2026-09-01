@@ -20,8 +20,8 @@ The prior contract wrapped web fetch plus nondeterministic JSON LLM classificati
 
 | Operation | Result |
 |---|---|
-| Fresh deployment | PASS; tx `0x79f96719cbedefd9aa2b9c8adcc468d30ec5c7bc27b93e6edcef1376ae3803a8` |
-| Contract | `0xA69E0dfb1ec3cCd15Db999073fEEb612396e6b67` |
+| Fresh deployment | PASS; tx `0xaac13e2c07d7bf52d847b9cb21d7cc904ddc69cae5ae04fbc8359c34366ea126` |
+| Contract | `0x32BF83c02eAF4096dC8D7f0760BAb38c089CbB7a` |
 | Schema | PASS via `npx --yes genlayer schema` |
 | Service registration | ACCEPTED; tx `0x3707f5201e8cd537da93aae2f95689f7dad24f2a75077211b73c0b99ddd6f25a` (duplicate retry; original persisted) |
 | Snapshot | SUCCESS/MAJORITY_AGREE; tx `0x4338d629e3905f7098be134bb5da00d0665be8ccde55ccac8e3c9e41f2c2fef0`; `PARTIAL`, canonical history sequence 1 |
@@ -31,13 +31,11 @@ The prior contract wrapped web fetch plus nondeterministic JSON LLM classificati
 | Rebuild | SUCCESS/MAJORITY_AGREE; tx `0x5193efdc1c3602e50a0e703bcecacf018114b2fb74ffed04b0a3a42aade07521`; policy version 2 |
 | Reassessment A / B | `0xdc3de30fed3aa6a330ab9c3c56213bc76c3f61cc680011cac369e1c0f5fb935d` / `0x64a1e2c3dc37b190ccefd11cf42776288e73df60fc9b6ef72767745884567356`; both `CONDITIONAL`, gates false |
 | Gate-open proof | no-op action registration `0xe90f651b4e96a806f9fc84a3e50bb446ef6ba97946c7ea4df71a246163efd3f1`; authorization `0x43c74233f0b79a5d750faecd0ceeb3b5b9c6e66e4e936fbbb68ce30e6f23502d`; `ALLOWED`, gate true |
-| Action/authorization/change | Not run after snapshot refusal; no false success claimed |
 
 ## Local validation
 
-`npm ci`, `npm run typecheck`, `npm run lint`, `npm test` (2 tests), and `npm run build` pass locally. GitHub Actions is GREEN for final HEAD `755f2e6c3566df60c9679001ac382c1fcea6fed6` (run [33552843628](https://github.com/Bibidee/termsrail/actions/runs/33552843628)); all npm steps completed. Direct Mode installation was attempted, but Python/pip and a callable `genlayer test` command are unavailable in this environment.
+`npm ci`, `npm run typecheck`, `npm run lint`, `npm test` (2 tests), and `npm run build` pass locally. GitHub Actions is GREEN for commit `401f60d077d5be76a967211a2c8f48beb5520f89` (run [33563739282](https://github.com/Bibidee/termsrail/actions/runs/33563739282)); Direct Mode contract tests passed (3 tests) and `genvm-lint check contracts/termsrail.py` passed.
 
 Frozen source SHA-256: `2FE67026251071D533FF7450AC33EF65E925CECFD865EA8D325ACBC8E30F73E8`.
 
-Latest source-change deployment: `0xb6000FC55e4B044E71e686a6F315eB698025f697`, tx `0xa4f0f8ae2893ce3ad37762756ef8f81f83820cda4bfadcc1c41bfa097567dda4`; schema PASS. Fresh service tx `0x446f5ea68dda779b0f203bfe831bd74fbb43097c5988a9fcf02ecbd743d4348b`; successful snapshot tx `0x88c47dacac10af4486ca7a90f09a2e4c18a14e61d09d7f6ec582fc98fefd893a`.
 Latest linter-compliant deployment: `0x32BF83c02eAF4096dC8D7f0760BAb38c089CbB7a`, tx `0xaac13e2c07d7bf52d847b9cb21d7cc904ddc69cae5ae04fbc8359c34366ea126`.
