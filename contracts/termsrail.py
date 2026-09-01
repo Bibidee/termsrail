@@ -142,6 +142,12 @@ class TermsRail(gl.Contract):
         if action_type not in ACTION_TYPES or not isinstance(fields,dict) or len(json.dumps(fields))>4096 or any(k not in FIELD_ENUMS or not isinstance(v,str) or v not in FIELD_ENUMS[k] for k,v in fields.items()): raise gl.vm.UserError("invalid action fields")
         defaults={"automation":"NO","scraping":"NO","bulk_collection":"NO","commercial_purpose":"NO","storage":"NONE","redistribution":"NONE","model_training":"NO","account_operation":"NONE","delegation":"NO","volume_class":"LOW","frequency":"LOW"}
         fields={k:fields.get(k,defaults[k]) for k in FIELD_ENUMS}
+        if action_type=="MODEL_TRAINING" and fields["model_training"]!="YES": raise gl.vm.UserError("model training invariant")
+        if action_type=="DATA_REDISTRIBUTION" and fields["redistribution"]=="NONE": raise gl.vm.UserError("redistribution invariant")
+        if action_type=="AGENT_DELEGATION" and fields["delegation"]!="YES": raise gl.vm.UserError("delegation invariant")
+        if action_type=="ACCOUNT_ACTION" and fields["account_operation"]=="NONE": raise gl.vm.UserError("account operation invariant")
+        if action_type in ("AUTOMATED_MESSAGE","AUTOMATED_PURCHASE","API_CALL") and fields["automation"]!="YES": raise gl.vm.UserError("automation invariant")
+        if action_type=="DATA_COLLECTION" and fields["scraping"]=="NO" and fields["bulk_collection"]=="NO" and fields["automation"]=="NO": raise gl.vm.UserError("collection invariant")
         unique=str(sid)+":"+key
         if self.action_keys.get(unique,""): raise gl.vm.UserError("duplicate action key for service")
         spec={"action_key":key,"action_type":action_type,"description":desc,"fields":fields}; aid=str(self.next_action_id); self.next_action_id+=1
@@ -154,13 +160,16 @@ class TermsRail(gl.Contract):
         mapping={"automation":"automation_match","scraping":"collection_match","bulk_collection":"collection_match","commercial_use":"commercial_match","data_storage":"storage_match","redistribution":"redistribution_match","model_training":"training_match","account_automation":"account_match","delegation":"delegation_match","rate_limiting":"rate_match"}
         aliases={"data_storage":"storage","commercial_use":"commercial_purpose","redistribution":"redistribution","model_training":"model_training","account_automation":"account_operation"}
         for d,m in mapping.items():
-            raw=fields.get(d,fields.get(aliases.get(d,d),"")); active=raw in ("YES","PERSISTENT","PUBLIC","COMMERCIAL","WRITE","HIGH","BULK")
+            raw=fields.get(d,fields.get(aliases.get(d,d),"")); active=(raw=="YES" if d in ("automation","scraping","bulk_collection","commercial_use","model_training","delegation") else raw in ("TRANSIENT","PERSISTENT") if d=="data_storage" else raw!="NONE" if d in ("redistribution","account_automation") else False)
             if not active: continue
             p=dims[d]; finding="VIOLATES" if p=="PROHIBITED" else "POLICY_CONFLICT" if p=="CONFLICTING" else "RESTRICTED" if p=="RESTRICTED" else "CONDITIONAL" if p in ("CONDITIONAL","UNKNOWN","NOT_ADDRESSED") else "SATISFIED"; current=result[m]
             if "VIOLATES" in (current,finding): result[m]="VIOLATES"
             elif "POLICY_CONFLICT" in (current,finding): result[m]="POLICY_CONFLICT"
             elif "RESTRICTED" in (current,finding): result[m]="RESTRICTED"
             elif "CONDITIONAL" in (current,finding): result[m]="CONDITIONAL"
+        volume=fields.get("volume_class","LOW"); frequency=fields.get("frequency","LOW")
+        if volume!="LOW" or frequency!="LOW":
+            p=dims["rate_limiting"]; result["rate_match"]="VIOLATES" if p=="PROHIBITED" else "POLICY_CONFLICT" if p=="CONFLICTING" else "RESTRICTED" if p=="RESTRICTED" else "CONDITIONAL" if p in ("CONDITIONAL","UNKNOWN","NOT_ADDRESSED") else "SATISFIED"
         return result
 
     def verdict(self,matches):
