@@ -12,6 +12,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-dev.txt
+      - run: pytest -q tests/test_contract_direct.py
+      - run: genvm-lint check contracts/termsrail.py
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
