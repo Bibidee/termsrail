@@ -23,4 +23,4 @@ npm test
 npm run build
 ```
 
-The live CLI validation, schema retrieval, deployment and service write were run on Studionet with the unlocked `faultline-dev` account. Snapshot consensus remains asynchronous and is recorded in `HANDOFF.md` only after receipt finalization.
+The live CLI validation, schema retrieval, deployment and service writes were run on Studionet with the unlocked `faultline-dev` account. Snapshot consensus now uses independent semantic validation and fails closed when source evidence is unavailable; exact receipts are recorded in `HANDOFF.md`.
