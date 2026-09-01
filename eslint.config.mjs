@@ -1,2 +1,3 @@
 import nextVitals from 'eslint-config-next/core-web-vitals';
-export default [...nextVitals];
+const config = [...nextVitals];
+export default config;

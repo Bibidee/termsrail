@@ -18,9 +18,13 @@ The frontend targets Studionet (chain `61999`, RPC `https://studio.genlayer.com/
 ## Verification
 
 ```bash
+npm ci
 npm run typecheck
 npm test
+npm run lint
 npm run build
+python -m pytest -q tests/test_contract_direct.py
+genvm-lint check contracts/termsrail.py
 ```
 
 The live CLI validation, schema retrieval, deployment and service writes were run on Studionet with the unlocked `faultline-dev` account. Snapshot consensus now uses independent semantic validation and fails closed when source evidence is unavailable; exact receipts are recorded in `HANDOFF.md`.

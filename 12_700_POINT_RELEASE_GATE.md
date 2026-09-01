@@ -3,11 +3,7 @@
 No document guarantees 700 points. Earn it with evidence.
 
 ## GenLayer depth
-Prove three distinct consensus tasks:
-1. policy extraction
-2. action authorization
-3. material policy-change detection
-At least two should be exercised live on Studionet; target all three.
+Semantic consensus covers policy snapshot extraction and material policy-change interpretation. Structured action matching, verdict aggregation and the execution gate are deterministic.
 
 ## State depth
 Source version, policy version, action spec hash, snapshot history, authorization history, change history, deterministic TTL, invalidation, reassessment and fail-closed execution gate.
