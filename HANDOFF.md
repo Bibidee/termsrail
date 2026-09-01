@@ -2,7 +2,7 @@
 
 ## Status
 
-NOT READY FOR SUBMISSION. The consensus architecture now supports partial evidence and fails closed, but the live snapshot call has not finalized a successful mutation, so a complete authorization/change lifecycle cannot honestly be claimed.
+NOT READY FOR SUBMISSION. Snapshot, action registration, authorization, gate evaluation and change detection now execute on Studionet. The latest rebuild transaction has not yet produced a captured receipt, so final reassessment is not claimed.
 
 ## Root cause of `0xb96d1aa3121e2eefe2d2c9823bf740a7a066cc201e391fde3b27529ed918bd61`
 
@@ -20,15 +20,19 @@ The prior contract wrapped web fetch plus nondeterministic JSON LLM classificati
 
 | Operation | Result |
 |---|---|
-| Fresh deployment | PASS; tx `0x5593d49489da828b9603200bf154bcf598fea00e9a3482622e6c0cac89677d79` |
-| Contract | `0xd44f06159D9428735d09447d1c0E88D5DA8396CD` |
+| Fresh deployment | PASS; tx `0x79f96719cbedefd9aa2b9c8adcc468d30ec5c7bc27b93e6edcef1376ae3803a8` |
+| Contract | `0xA69E0dfb1ec3cCd15Db999073fEEb612396e6b67` |
 | Schema | PASS via `npx --yes genlayer schema` |
-| Service registration | ACCEPTED; tx `0xff27d26365517707d2827f2bbf21362fc0a9a118013e793a29f85254a680b930` |
-| Snapshot attempts | Pending/transport timeouts on first calls; final successful mutation not yet captured |
+| Service registration | ACCEPTED; tx `0x3707f5201e8cd537da93aae2f95689f7dad24f2a75077211b73c0b99ddd6f25a` (duplicate retry; original persisted) |
+| Snapshot | SUCCESS/MAJORITY_AGREE; tx `0x4338d629e3905f7098be134bb5da00d0665be8ccde55ccac8e3c9e41f2c2fef0`; `PARTIAL`, canonical history sequence 1 |
+| Action A registration / authorization | `0x4002ad7653ce75a1b3d51c0e4368f60b2e463a46ca435f8beaeacac3c76e81a8` / `0xbf18a58cc32534fae779d50a6f79f15f8eee9a96fff6ae9e9fa791dc5d2a6ef8`; `CONDITIONAL`, gate false |
+| Action B registration / authorization | `0x0292a2014c8a87fe089c1b90c39005911ca13a11c91d84d0cc8f55c45d93d225` / `0x6ea0f1d86440327a8a5febddf2239b82fd55ea28d97a418c84cc73dc0ff4425c`; `CONDITIONAL`, gate false |
+| Policy change | ACCEPTED/MAJORITY_AGREE; tx `0x276dbc5b5133f17dce5868a1f4e494f7bb92446787e401b6581194850ea08087`; `UNKNOWN_CHANGE`, fail-closed |
+| Rebuild/reassessment | Submitted but no finalized receipt captured |
 | Action/authorization/change | Not run after snapshot refusal; no false success claimed |
 
 ## Local validation
 
 `npm ci`, `npm run typecheck`, `npm run lint`, `npm test` (2 tests), and `npm run build` pass locally. GitHub Actions is GREEN for final HEAD `755f2e6c3566df60c9679001ac382c1fcea6fed6` (run [33552843628](https://github.com/Bibidee/termsrail/actions/runs/33552843628)); all npm steps completed. Direct Mode installation was attempted, but Python/pip and a callable `genlayer test` command are unavailable in this environment.
 
-Frozen source SHA-256: `812F03471BB221F0C7EE2871DD2E5158B53255735701729F234E679E0C079BE0`.
+Frozen source SHA-256: `42B2DA8A4192E278F1F97675B4E99E98745B978057E99B80651B171F7750DAA6`.

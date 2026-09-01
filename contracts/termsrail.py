@@ -33,6 +33,16 @@ def items(value):
         except Exception: pass
         return [x.strip() for x in value.split(",") if x.strip()]
     return value
+def field_items(value):
+    if isinstance(value,dict): return value
+    if not isinstance(value,str): return {}
+    text=value.strip()
+    if text.startswith("{") and text.endswith("}"): text=text[1:-1]
+    out={}
+    for pair in text.split(","):
+        if ":" not in pair: continue
+        key,val=pair.split(":",1); out[key.strip().strip("\"'")]=val.strip().strip("\"'")
+    return out
 
 class TermsRail(gl.Contract):
     services: TreeMap[str,str]; service_ids: DynArray[str]; service_keys: TreeMap[str,str]
@@ -82,7 +92,10 @@ class TermsRail(gl.Contract):
             evidence=[]; unavailable_roles=[]
             for source,role in zip(value["source_urls"],value["source_roles"]):
                 try:
-                    text=gl.nondet.web.render(source,mode="html")[:12000]
+                    response=gl.nondet.web.get(source); body=response.body
+                    text=body.decode("utf-8",errors="ignore") if isinstance(body,bytes) else str(body)
+                    if not text.strip(): text=gl.nondet.web.render(source,mode="html")
+                    text=text[:12000]
                     state="EMPTY" if not text.strip() else "OK"
                     if state!="OK": unavailable_roles.append(role)
                     evidence.append({"role":role,"fetch_state":state,"text":text})
@@ -117,12 +130,15 @@ class TermsRail(gl.Contract):
         history=self.snapshot_histories.get(str(sid)); sequence=(len(history) if history else 0)+1; pv=value["policy_version"]+1
         if result["evidence_state"] in ("UNAVAILABLE","UNKNOWN","INSUFFICIENT"): raise gl.vm.UserError("snapshot evidence is not sufficient")
         snapshot={"service_id":str(sid),"sequence":sequence,"source_version":value["source_version"],"policy_version":pv,"dimensions":{d:result[d] for d in DIMENSIONS},"evidence_state":result["evidence_state"],"conflict":any(result[d]=="CONFLICTING" for d in DIMENSIONS),"reason_code":clean(str(result.get("reason_code","CURRENT_POLICY_EXTRACTED")),128),"summary":clean(str(result.get("summary","bounded validator observation")),512),"created_at":now()}
-        encoded=json.dumps(snapshot,sort_keys=True); self.snapshots[str(sid)]=encoded; self.snapshot_histories[str(sid)].append(encoded)
+        encoded=json.dumps(snapshot,sort_keys=True); self.snapshots[str(sid)]=encoded
+        if not history: self.snapshot_histories[str(sid)]=[]
+        self.snapshot_histories[str(sid)].append(encoded)
         value.update({"policy_version":pv,"policy_status":"ACTIVE","policy_checked_at":now(),"policy_valid_until":now()+value["ttl"],"unresolved_change":False}); self.save_service(value); return str(sequence)
 
     @gl.public.write
-    def register_action(self,sid:str,action_key:str,action_type:str,description:str,fields:dict[str,str])->str:
+    def register_action(self,sid:str,action_key:str,action_type:str,description:str,fields:str)->str:
         self.service(sid); key=clean(action_key,96); desc=clean(description,1000)
+        fields=field_items(fields)
         if action_type not in ACTION_TYPES or not isinstance(fields,dict) or len(json.dumps(fields))>4096 or any(k not in FIELD_ENUMS or not isinstance(v,str) or v not in FIELD_ENUMS[k] for k,v in fields.items()): raise gl.vm.UserError("invalid action fields")
         defaults={"automation":"NO","scraping":"NO","bulk_collection":"NO","commercial_purpose":"NO","storage":"NONE","redistribution":"NONE","model_training":"NO","account_operation":"NONE","delegation":"NO","volume_class":"LOW","frequency":"LOW"}
         fields={k:fields.get(k,defaults[k]) for k in FIELD_ENUMS}
@@ -163,7 +179,9 @@ class TermsRail(gl.Contract):
         action=json.loads(raw_action); value=self.service(action["service_id"]); raw=self.snapshots.get(action["service_id"],"")
         if not raw or value["policy_status"]!="ACTIVE" or value["policy_valid_until"]<now(): raise gl.vm.UserError("fresh active snapshot required")
         snapshot=json.loads(raw); matches=self.authorization_consensus(action,snapshot); history=self.authorization_histories.get(str(aid)); sequence=(len(history) if history else 0)+1; valid_until=min(value["policy_valid_until"],now()+value["ttl"])
-        auth={"action_id":str(aid),"sequence":sequence,"policy_version":value["policy_version"],"source_version":value["source_version"],"spec_hash":action["spec_hash"],"matches":matches,"evidence_state":matches["evidence_state"],"reason_code":matches["reason_code"],"verdict":self.verdict(matches),"valid_until":valid_until,"created_at":now()}; encoded=json.dumps(auth,sort_keys=True); self.authorizations[str(aid)]=encoded; self.authorization_histories[str(aid)].append(encoded); return auth["verdict"]
+        auth={"action_id":str(aid),"sequence":sequence,"policy_version":value["policy_version"],"source_version":value["source_version"],"spec_hash":action["spec_hash"],"matches":matches,"evidence_state":matches["evidence_state"],"reason_code":matches["reason_code"],"verdict":self.verdict(matches),"valid_until":valid_until,"created_at":now()}; encoded=json.dumps(auth,sort_keys=True); self.authorizations[str(aid)]=encoded
+        if not history: self.authorization_histories[str(aid)]=[]
+        self.authorization_histories[str(aid)].append(encoded); return auth["verdict"]
 
     def change_consensus(self,value,snapshot):
         def classify():
@@ -189,7 +207,9 @@ class TermsRail(gl.Contract):
     def check_policy_change(self,sid:str)->str:
         value=self.service(sid); self.owner(value); raw=self.snapshots.get(str(sid),"")
         if not raw: raise gl.vm.UserError("snapshot required")
-        result=self.change_consensus(value,json.loads(raw)); history=self.change_histories.get(str(sid)); sequence=(len(history) if history else 0)+1; record={"service_id":str(sid),"sequence":sequence,"from_policy_version":value["policy_version"],"source_version":value["source_version"],"change_state":result["change_state"],"changed_dimensions":result["changed_dimensions"],"evidence_state":result["evidence_state"],"reason_code":result.get("reason_code","CHANGE_CHECKED"),"checked_at":now()}; encoded=json.dumps(record,sort_keys=True); self.changes[str(sid)]=encoded; self.change_histories[str(sid)].append(encoded)
+        result=self.change_consensus(value,json.loads(raw)); history=self.change_histories.get(str(sid)); sequence=(len(history) if history else 0)+1; record={"service_id":str(sid),"sequence":sequence,"from_policy_version":value["policy_version"],"source_version":value["source_version"],"change_state":result["change_state"],"changed_dimensions":result["changed_dimensions"],"evidence_state":result["evidence_state"],"reason_code":result.get("reason_code","CHANGE_CHECKED"),"checked_at":now()}; encoded=json.dumps(record,sort_keys=True); self.changes[str(sid)]=encoded
+        if not history: self.change_histories[str(sid)]=[]
+        self.change_histories[str(sid)].append(encoded)
         if result["change_state"] in ("MATERIAL_CHANGE","POLICY_UNAVAILABLE","UNKNOWN_CHANGE"): value.update({"policy_version":value["policy_version"]+(1 if result["change_state"]=="MATERIAL_CHANGE" else 0),"policy_status":"NEEDS_SNAPSHOT","policy_valid_until":0,"unresolved_change":True}); self.save_service(value)
         return result["change_state"]
 
