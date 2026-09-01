@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-The frontend targets Studionet (chain `61999`, RPC `https://studio.genlayer.com/api`). Set a deployed contract address in the integration layer before connecting a wallet. Empty chain state is rendered as empty; the UI never fabricates production records.
+The frontend targets Studionet (chain `61999`, RPC `https://studio.genlayer.com/api`). The current verified deployment is configured in `.env.example`; copy it to `.env.local` for local use. Empty chain state is rendered as empty; the UI never fabricates production records.
 
 ## Contract
 
@@ -23,4 +23,4 @@ npm test
 npm run build
 ```
 
-GenLayer lint, schema generation, Studionet deployment and live transaction evidence require the GenLayer CLI/runtime and a funded injected wallet; neither is present in this workspace, so no addresses or hashes are invented.
+The live CLI validation, schema retrieval, deployment and service write were run on Studionet with the unlocked `faultline-dev` account. Snapshot consensus remains asynchronous and is recorded in `HANDOFF.md` only after receipt finalization.
