@@ -17,6 +17,7 @@ export async function connectWallet(provider: Eip1193) {
 }
 export function clientFor(address: `0x${string}`, provider: Eip1193) { return createClient({ chain: studionet, account: address, provider }); }
 export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[], readback: () => Promise<T>, expected: (value: T) => boolean) {
+  if (address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase()) { const accounts = await provider.request({ method: 'eth_accounts' }) as string[]; if (!accounts[0]) throw new Error('Wallet account unavailable'); address = accounts[0] as `0x${string}`; }
   const client = clientFor(address, provider);
   const hash = await client.writeContract({ address: requireContract(), functionName, args: args as never[], value: 0n });
   const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED });
