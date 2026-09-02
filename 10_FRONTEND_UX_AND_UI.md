@@ -39,3 +39,6 @@ SUBMITTING → LEADER EXECUTION → VALIDATOR REVIEW → CONSENSUS → FINALISED
 Never show UPDATED before readback.
 
 Mobile must use compact signal/policy rows, not giant cards. Accessible focus, keyboard nav, AA contrast, 44px touch targets and non-colour-only statuses.
+## Current TermsRail frontend
+
+The live interface uses a cool-bright route/checkpoint visual language: electric blue, cyan, mint, coral, lavender, white surfaces, and deep navy text. It intentionally avoids a yellow-dominant or Jestor-like treatment. Services, policy dimensions, execution gates, transaction progress, and change history are presented as labelled state blocks; canonical values are always paired with text and never conveyed by color alone. The POLICY ROUTE animation communicates SOURCE → SNAPSHOT → ACTION → GO and respects reduced-motion preferences. Transaction success is shown only after finalized execution verification and canonical contract readback. The layout is responsive, with accessible focus states and mobile-friendly navigation.
