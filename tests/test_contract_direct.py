@@ -130,5 +130,5 @@ def test_change_state_non_material(direct_deploy, direct_vm):
     c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("nonmaterial","N","x","https://nonmaterial.example/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); assert c.check_policy_change(sid)=="NON_MATERIAL_CHANGE"
 
 def test_change_state_policy_unavailable_fails_closed(direct_deploy, direct_vm):
-    response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"available",{"status":200,"body":"stable"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response))
+    response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"available",{"status":200,"body":"stable"}); direct_vm.mock_web(r"offline",{"status":500,"body":""}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response))
     c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("unavailable","E","x","[\"https://available.example/p\",\"https://offline.invalid/p\"]","[\"TERMS_OF_SERVICE\",\"API_TERMS\"]",86400); c.build_policy_snapshot(sid); assert c.check_policy_change(sid)=="POLICY_UNAVAILABLE"; assert '"unresolved_change": true' in c.get_service(sid)
