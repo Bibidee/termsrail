@@ -7,6 +7,7 @@ export const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ?? '')
 export type Eip1193 = { request(args: { method: string; params?: unknown[] }): Promise<unknown>; on?: (event: string, handler: (...args: unknown[]) => void) => void; removeListener?: (event: string, handler: (...args: unknown[]) => void) => void };
 
 export function requireContract() { if (!/^0x[0-9a-fA-F]{40}$/.test(CONTRACT_ADDRESS)) throw new Error('TermsRail contract is not configured correctly.'); return CONTRACT_ADDRESS as `0x${string}`; }
+export async function getAuthorizedAccount(provider: Eip1193): Promise<string> { const accounts = await provider.request({ method: 'eth_accounts' }) as string[]; return accounts?.[0] ?? ''; }
 export function assertSuccessfulExecution(execution: unknown): void { if (execution !== ExecutionResult.FINISHED_WITH_RETURN) throw new Error(`Transaction execution failed: ${execution ?? 'UNKNOWN'}`); }
 export function resolveServiceId(rows: string[], serviceKey: string): string | number | undefined { for (const raw of rows) { try { const value = JSON.parse(raw) as {service_key?:string;id?:string|number;service_id?:string|number}; if (value.service_key === serviceKey) return value.id ?? value.service_id; } catch {} } return undefined; }
 export function resolveActionId(rows: string[], actionKey: string): string | number | undefined { for (const raw of rows) { try { const value = JSON.parse(raw) as {action_key?:string;id?:string|number;action_id?:string|number}; if (value.action_key === actionKey) return value.id ?? value.action_id; } catch {} } return undefined; }
@@ -18,7 +19,6 @@ export async function connectWallet(provider: Eip1193) {
 }
 export function clientFor(address: `0x${string}`, provider: Eip1193) { return createClient({ chain: studionet, account: address, provider }); }
 export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[], readback: () => Promise<T>, expected: (value: T) => boolean) {
-  if (address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase()) { const accounts = await provider.request({ method: 'eth_accounts' }) as string[]; if (!accounts[0]) throw new Error('Wallet account unavailable'); address = accounts[0] as `0x${string}`; }
   const client = clientFor(address, provider);
   const hash = await client.writeContract({ address: requireContract(), functionName, args: args as never[], value: 0n });
   const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED });
