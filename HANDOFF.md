@@ -10,6 +10,11 @@
 - Fresh snapshot: `0x2e3d333db1d41bcf0ef27f7cb6f8f129f94722dffa66a60a61cf678b5854b613`
 - Fresh action: `0xa4736eab9bf77b37197ec0c5e57d6d521e35d92100a0643c8b347908452b5c3b`
 - Fresh authorization: `0xc45e0998193923d4b79fb53cc0a8856ae3763138f9565369c510a13f3bf19bda`
+- Action B registration: `0xfca67fc5d4f3e16648cf8a1f81d104f7ee45c8a18ac8bac2b2afc952…` (accepted)
+- Action B authorization: `0x9dca8902c0c6e8fd6f5fd4ef8b1a8b0f32dbb5d918f65f538b8e028…` (accepted)
+- Semantic change: `0xab7c8383d66bd7a0bb2b608e55af784353271a5fa9b1b5490d7a6f2e62df6279` (accepted)
+- Rebuild: `0xa0dbe34c138cada362a2522999f20dabe9b72278f2e45d3077c912ac7af0ca23` (accepted)
+- Reassessment A: `0x300ec22f924bb7fefb62d3103c13ac3ad606a15d7bb73df13fdf3612c886495d` (accepted)
 
 ## Status
 
