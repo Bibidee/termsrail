@@ -20,7 +20,7 @@ export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193,
   const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED });
   if (!receipt) throw new Error('Transaction did not finalize');
   const execution = (receipt as { txExecutionResultName?: string }).txExecutionResultName;
-  if (execution && execution !== ExecutionResult.FINISHED_WITH_RETURN) throw new Error(`Transaction execution failed: ${execution}`);
+  if (execution !== ExecutionResult.FINISHED_WITH_RETURN) throw new Error(`Transaction execution failed: ${execution ?? 'UNKNOWN'}`);
   const state = await readback();
   if (!expected(state)) throw new Error('Canonical readback mismatch after finality');
   return { hash, receipt, state };
