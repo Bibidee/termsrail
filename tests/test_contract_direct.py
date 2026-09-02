@@ -120,3 +120,15 @@ def test_material_change_full_lifecycle(direct_deploy, direct_vm):
     state=c.check_policy_change(sid)
     assert state=="MATERIAL_CHANGE" and '"policy_version": 1' in c.get_service(sid) and '"unresolved_change": true' in c.get_service(sid)
     assert c.rebuild_policy_snapshot(sid)=="2"; assert '"policy_version": 2' in c.get_service(sid); c.reassess_action(aid)
+
+def test_change_state_unchanged(direct_deploy, direct_vm):
+    response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"same",{"status":200,"body":"stable"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response)); direct_vm.mock_llm(r"operative policy meaning",json.dumps(response))
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("unchanged","U","x","https://same.example/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); assert c.check_policy_change(sid)=="UNCHANGED"
+
+def test_change_state_non_material(direct_deploy, direct_vm):
+    initial={d:"ALLOWED" for d in DIMENSIONS}; updated=dict(initial); updated["automation"]="NOT_ADDRESSED"; direct_vm.mock_web(r"nonmaterial",{"status":200,"body":"stable"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(initial)); direct_vm.mock_llm(r"operative policy meaning",json.dumps(updated))
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("nonmaterial","N","x","https://nonmaterial.example/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); assert c.check_policy_change(sid)=="NON_MATERIAL_CHANGE"
+
+def test_change_state_policy_unavailable_fails_closed(direct_deploy, direct_vm):
+    response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"available",{"status":200,"body":"stable"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response))
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("unavailable","E","x","[\"https://available.example/p\",\"https://offline.invalid/p\"]","[\"TERMS_OF_SERVICE\",\"API_TERMS\"]",86400); c.build_policy_snapshot(sid); assert c.check_policy_change(sid)=="POLICY_UNAVAILABLE"; assert '"unresolved_change": true' in c.get_service(sid)
