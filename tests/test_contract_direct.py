@@ -93,3 +93,18 @@ def test_history_sequence_after_snapshot(direct_deploy, direct_vm):
     response={d:"NOT_ADDRESSED" for d in DIMENSIONS}; direct_vm.mock_web(r"example\.com",{"status":200,"body":"terms"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response))
     c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("hist","H","x","https://example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid)
     assert len(c.get_policy_history(sid,0,10))==1
+
+def test_unavailable_scraping_overrides_optimistic_llm(direct_deploy, direct_vm):
+    response={d:"NOT_ADDRESSED" for d in DIMENSIONS}; response.update({"scraping":"ALLOWED","bulk_collection":"ALLOWED","commercial_use":"RESTRICTED"})
+    direct_vm.mock_web(r"commercial",{"status":200,"body":"commercial policy prohibits use"})
+    direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response))
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12")
+    sid=c.register_service("evidence","Evidence","x","[\"https://scraping.example/p\",\"https://commercial.example/p\"]","[\"SCRAPING_POLICY\",\"COMMERCIAL_USE_POLICY\"]",86400)
+    assert c.build_policy_snapshot(sid)=="1"
+    snap=c.get_policy_history(sid,0,1)[0]
+    assert '"scraping": "UNKNOWN"' in snap and '"commercial_use": "RESTRICTED"' in snap
+
+def test_all_unavailable_fails_closed_without_shape_disagreement(direct_deploy, direct_vm):
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12")
+    sid=c.register_service("offline","Offline","x","https://offline.invalid/p","SCRAPING_POLICY",86400)
+    with direct_vm.expect_revert("snapshot evidence is not sufficient"): c.build_policy_snapshot(sid)
