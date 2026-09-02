@@ -102,7 +102,8 @@ class TermsRail(gl.Contract):
             role_dims={"SCRAPING_POLICY":["scraping","bulk_collection"],"API_TERMS":["automation","rate_limiting"],"AUTOMATION_POLICY":["automation","account_automation","delegation"],"COMMERCIAL_USE_POLICY":["commercial_use"],"DATA_POLICY":["data_storage","model_training","redistribution"]}; unavailable_dims=[]
             for role in unavailable_roles: unavailable_dims += role_dims.get(role,DIMENSIONS)
             for d in DIMENSIONS:
-                if result.get(d) not in POLICY_VALUES: result[d]="UNKNOWN" if d in unavailable_dims else "NOT_ADDRESSED"
+                if d in unavailable_dims: result[d]="UNKNOWN"
+                elif result.get(d) not in POLICY_VALUES: result[d]="NOT_ADDRESSED"
             result["evidence_state"]="UNAVAILABLE" if len(unavailable_roles)==len(value["source_roles"]) else "PARTIAL" if unavailable_roles or any(result[d] in ("UNKNOWN","NOT_ADDRESSED") for d in DIMENSIONS) else "SUFFICIENT"; result["dimension_evidence"]={d:("UNAVAILABLE" if d in unavailable_dims else "SUFFICIENT" if result[d] not in ("UNKNOWN","NOT_ADDRESSED") else "UNKNOWN") for d in DIMENSIONS}; result["reason_code"]=str(result.get("reason_code","CLASSIFIED"))[:128]; return result
         def leader_fn():
             evidence=[]; unavailable_roles=[]

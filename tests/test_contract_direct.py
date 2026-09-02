@@ -60,3 +60,20 @@ def test_material_change_does_not_skip_policy_version(direct_deploy, direct_vm):
     sid = contract.register_service("versions", "Versions", "example.com", "https://example.com/policy", "TERMS_OF_SERVICE", 86400)
     contract.build_policy_snapshot(sid)
     assert '"policy_version": 1' in contract.get_service(sid)
+
+def test_duplicate_service_key_rejected(direct_deploy, direct_vm):
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); c.register_service("dup","D","example.com","https://example.com/a","TERMS_OF_SERVICE",86400)
+    with direct_vm.expect_revert("duplicate service key"): c.register_service("dup","D2","example.com","https://example.com/b","TERMS_OF_SERVICE",86400)
+
+def test_private_ipv4_ranges_rejected(direct_deploy, direct_vm):
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12")
+    for host in ("10.0.0.1","172.16.0.1","172.31.255.255","192.168.1.1","169.254.1.1"):
+        with direct_vm.expect_revert("private or loopback"): c.register_service(host,"D",host,"https://"+host+"/p","TERMS_OF_SERVICE",86400)
+
+def test_action_defaults_and_unknown_policy_fail_closed(direct_deploy, direct_vm):
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("a","A","example.com","https://example.com/p","TERMS_OF_SERVICE",86400)
+    with direct_vm.expect_revert("fresh active snapshot"): c.authorize_action(c.register_action(sid,"x","OTHER","x",fields()))
+
+def test_pagination_cap_rejected(direct_deploy, direct_vm):
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12")
+    with direct_vm.expect_revert("invalid pagination"): c.get_services(0,51)
