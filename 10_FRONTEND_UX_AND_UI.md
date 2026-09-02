@@ -42,3 +42,6 @@ Mobile must use compact signal/policy rows, not giant cards. Accessible focus, k
 ## Current TermsRail frontend
 
 The live interface uses a cool-bright route/checkpoint visual language: electric blue, cyan, mint, coral, lavender, white surfaces, and deep navy text. It intentionally avoids a yellow-dominant or Jestor-like treatment. Services, policy dimensions, execution gates, transaction progress, and change history are presented as labelled state blocks; canonical values are always paired with text and never conveyed by color alone. The POLICY ROUTE animation communicates SOURCE → SNAPSHOT → ACTION → GO and respects reduced-motion preferences. Transaction success is shown only after finalized execution verification and canonical contract readback. The layout is responsive, with accessible focus states and mobile-friendly navigation.
+## Frozen-release note
+
+`UNKNOWN_CHANGE` remains in the canonical change-state schema, but the frozen implementation normalizes evidence to `SUFFICIENT`, `PARTIAL`, or `UNAVAILABLE`; therefore that branch is unreachable through the public lifecycle. Executable coverage covers all currently reachable states.
