@@ -2,7 +2,7 @@
 
 ## Status
 
-NOT READY — implementation is being finalized; awaiting final exact-source schema, deployment, and Studionet lifecycle.
+READY FOR SUBMISSION — final source deployed and fresh Studionet lifecycle evidence recorded below.
 
 ## Root cause of `0xb96d1aa3121e2eefe2d2c9823bf740a7a066cc201e391fde3b27529ed918bd61`
 
@@ -17,6 +17,12 @@ The prior contract wrapped web fetch plus nondeterministic JSON LLM classificati
 - Authorization remains deterministic derivation from the accepted structured snapshot; documentation no longer claims three consensus tasks.
 
 ## Live evidence (Studionet chain 61999)
+
+Final deployment (exact frozen source): contract `0xfc26F785CB29b8c4EE626DEE03b25a8829FA3dEE`, tx `0x7701bcf20b82710e2332dd6062a12cb6eafe1a8c29e0d5c95db90bd6247c4a9e`.
+
+Fresh final lifecycle: service registration tx `0xa2b044622020a66fc579d6048c999f62e7974dbb2fdbe5a69a497a2257cbe690` (ID 0); snapshot tx `0x514180e9f907545aa2a98f0f0a6850d4b7860d11467846eb0924f6cbc8adc697` (MAJORITY_AGREE, sequence 1, policy version 1, PARTIAL); action registration tx `0xce02e59d6aaff18a1f013db2be7ce9cdcbdef84d4641c1636b2aedb68e7f9b66` (ID 0); authorization tx `0xab911413db95598e0dccc75b2e449415ccd578ab54dbaf567e2aaad684df462e` (MAJORITY_AGREE).
+
+Semantic change check tx `0x6cae4b32e00c12878360bc43716b74798913e1eb95d1b038eb0add0898dd89ce` (MAJORITY_AGREE, NON_MATERIAL_CHANGE).
 
 | Operation | Result |
 |---|---|
