@@ -1,5 +1,8 @@
 # TERMSRAIL
 
+Live frontend: https://termsrail.vercel.app  
+Studionet contract: `0xd4FB52094c1DED0Ca71fc29D6E85Eff8E9089a8A` (chain 61999). The current repository HEAD may be newer than the frozen contract source because frontend-only releases do not redeploy the contract.
+
 TermsRail is a Next.js dApp and GenLayer Intelligent Contract for consensus-backed policy execution gates. Policy snapshot extraction and material policy-change detection use semantic consensus; structured action authorization is deterministic derivation over the accepted snapshot.
 
 ## Run
