@@ -1,6 +1,6 @@
 import { createClient } from 'genlayer-js';
 import { studionet } from 'genlayer-js/chains';
-import { TransactionStatus, ExecutionResult, executionResultNumberToName } from 'genlayer-js/types';
+import { ExecutionResult, executionResultNumberToName } from 'genlayer-js/types';
 
 export const STUDIONET_CHAIN_ID = 61999;
 export const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ?? '').trim();
@@ -10,6 +10,10 @@ export function requireContract() { if (!/^0x[0-9a-fA-F]{40}$/.test(CONTRACT_ADD
 export async function getAuthorizedAccount(provider: Eip1193): Promise<string> { const accounts = await provider.request({ method: 'eth_accounts' }) as string[]; return accounts?.[0] ?? ''; }
 export function normalizeExecutionResult(receipt: unknown): string | undefined { const seen=new Set<unknown>(); const visit=(value:unknown):string|undefined=>{if(value===null||value===undefined||seen.has(value))return undefined;if(typeof value==='number'||typeof value==='bigint')return executionResultNumberToName[String(value) as keyof typeof executionResultNumberToName];if(typeof value==='string'){const n=value.trim().toUpperCase();if(n==='1')return ExecutionResult.FINISHED_WITH_RETURN;if(n==='2')return ExecutionResult.FINISHED_WITH_ERROR;if(n==='0')return 'NOT_VOTED';if(n==='FINISHED_WITH_RETURN'||n==='FINISHED_WITH_ERROR'||n==='NOT_VOTED')return n;return undefined}if(typeof value==='object'){seen.add(value);const record=value as Record<string,unknown>;for(const key of ['txExecutionResultName','tx_execution_result_name','txExecutionResult','tx_execution_result','execution_result','executionResult']){const result=visit(record[key]);if(result)return result}for(const key of ['data','consensus_data','leader_receipt','genvm_result','genvmResult']){const result=visit(record[key]);if(result)return result}}return undefined};return visit(receipt); }
 export function assertSuccessfulExecution(execution: unknown): void { const normalized=normalizeExecutionResult(execution); if(normalized!==ExecutionResult.FINISHED_WITH_RETURN) throw new Error(`Transaction execution failed: ${normalized ?? 'UNKNOWN'}`); }
+export const FINALITY_INTERVAL_MS=3000;
+export const FINALITY_RETRIES=100;
+const isFinalized=(receipt:unknown)=>{const status=(receipt as {status?:unknown})?.status;return status===7||status==='7'||String(status).toUpperCase()==='FINALIZED'};
+export async function waitForFinalizedReceipt(client:any,hash:string,interval=FINALITY_INTERVAL_MS,retries=FINALITY_RETRIES):Promise<any>{let receipt=await client.waitForTransactionReceipt({hash,waitUntil:'finalized',interval,retries} as never);if(isFinalized(receipt))return receipt;for(let attempt=0;attempt<retries;attempt++){await new Promise(resolve=>setTimeout(resolve,interval));receipt=await client.getTransaction({hash});if(isFinalized(receipt))return receipt;if(String((receipt as {status?:unknown})?.status).toUpperCase()==='CANCELED')throw new Error('Transaction was canceled');}throw new Error(`Timed out waiting for transaction ${hash} to reach FINALIZED.`)}
 export function resolveServiceId(rows: string[], serviceKey: string): string | number | undefined { for (const raw of rows) { try { const value = JSON.parse(raw) as {service_key?:string;id?:string|number;service_id?:string|number}; if (value.service_key === serviceKey) return value.id ?? value.service_id; } catch {} } return undefined; }
 export function resolveActionId(rows: string[], actionKey: string): string | number | undefined { for (const raw of rows) { try { const value = JSON.parse(raw) as {action_key?:string;id?:string|number;action_id?:string|number}; if (value.action_key === actionKey) return value.id ?? value.action_id; } catch {} } return undefined; }
 export async function readAllRecords(readPage:(offset:bigint,limit:bigint)=>Promise<string[]>, pageSize=50n):Promise<string[]> { const out:string[]=[]; for(let offset=0n;;offset+=pageSize){const page=await readPage(offset,pageSize);out.push(...(page??[]));if((page??[]).length<Number(pageSize))return out;} }
@@ -29,7 +33,7 @@ export function clientFor(address: `0x${string}`, provider: Eip1193) { return cr
 export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[], readback: () => Promise<T>, expected: (value: T) => boolean) {
   const client = clientFor(address, provider);
   const hash = await client.writeContract({ address: requireContract(), functionName, args: args as never[], value: 0n });
-  const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED });
+  const receipt = await waitForFinalizedReceipt(client,hash);
   if (!receipt) throw new Error('Transaction did not finalize');
   assertSuccessfulExecution(receipt);
   const state = await readback();
