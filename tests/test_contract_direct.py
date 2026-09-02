@@ -130,5 +130,9 @@ def test_change_state_non_material(direct_deploy, direct_vm):
     c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("nonmaterial","N","x","https://nonmaterial.example/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); assert c.check_policy_change(sid)=="NON_MATERIAL_CHANGE"
 
 def test_change_state_policy_unavailable_fails_closed(direct_deploy, direct_vm):
-    response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"available",{"status":200,"body":"stable"}); direct_vm.mock_web(r"offline",{"status":500,"body":""}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response))
-    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("unavailable","E","x","[\"https://available.example/p\",\"https://offline.invalid/p\"]","[\"TERMS_OF_SERVICE\",\"API_TERMS\"]",86400); c.build_policy_snapshot(sid); assert c.check_policy_change(sid)=="POLICY_UNAVAILABLE"; assert '"unresolved_change": true' in c.get_service(sid)
+    response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"policy-unavailable",{"status":200,"body":"stable operative policy"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response))
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("unavailable","Evidence transition","policy-unavailable.example","https://policy-unavailable.example/p","TERMS_OF_SERVICE",86400); assert c.build_policy_snapshot(sid)=="1"
+    assert '"policy_version": 1' in c.get_service(sid) and '"policy_status": "ACTIVE"' in c.get_service(sid)
+    direct_vm.clear_mocks(); direct_vm.mock_web(r"policy-unavailable",{"status":500,"body":""}); direct_vm.mock_llm(r"operative policy meaning",json.dumps(response))
+    assert c.check_policy_change(sid)=="POLICY_UNAVAILABLE"; service_after=c.get_service(sid); assert '"policy_status": "NEEDS_SNAPSHOT"' in service_after and '"unresolved_change": true' in service_after
+    history=c.get_change_history(sid,0,10); assert len(history)==1 and '"change_state": "POLICY_UNAVAILABLE"' in history[0] and '"evidence_state": "UNAVAILABLE"' in history[0]
