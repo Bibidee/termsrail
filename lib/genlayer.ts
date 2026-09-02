@@ -17,6 +17,7 @@ export function validateActionInvariants(type:string,fields:Record<string,string
 export function verifySnapshotAdvance(before:unknown,after:unknown):boolean { const b=JSON.stringify(before),a=JSON.stringify(after); return b!==a; }
 export function verifyChangeReadback(value:unknown):boolean { return typeof value==='string' ? value.length>0 : Array.isArray(value) ? value.length>0 : !!value; }
 export function verifyChangeHistoryAdvance(before:string[],after:string[]):boolean { return (after?.length??0)>(before?.length??0); }
+export function verifyAuthorizationAdvance(before:string,after:string,actionId:string,currentPolicyVersion?:number):boolean { try { const b=before?JSON.parse(before):null; const a=JSON.parse(after); return String(a.action_id)===String(actionId) && (!b || Number(a.sequence)>Number(b.sequence)) && (currentPolicyVersion===undefined || Number(a.policy_version)===currentPolicyVersion); } catch { return false; } }
 export async function connectWallet(provider: Eip1193) {
   const accounts = await provider.request({ method: 'eth_requestAccounts' }) as string[];
   const chain = await provider.request({ method: 'eth_chainId' });
