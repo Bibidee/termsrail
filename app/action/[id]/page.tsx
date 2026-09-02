@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 'use client';
 import {useEffect,useState} from 'react';import Link from 'next/link';
 import {clientFor,getAuthorizedAccount,connectWallet,writeAndRead,requireContract,Eip1193,verifyAuthorizationAdvance} from '../../../lib/genlayer';
