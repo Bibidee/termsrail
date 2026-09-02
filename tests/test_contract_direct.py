@@ -90,6 +90,6 @@ def test_ipv6_private_ranges_rejected(direct_deploy, direct_vm):
         with direct_vm.expect_revert("private or loopback"): c.register_service(host,"D","x","https://"+host+"/p","TERMS_OF_SERVICE",86400)
 
 def test_history_sequence_after_snapshot(direct_deploy, direct_vm):
-    response={d:"NOT_ADDRESSED" for d in DIMENSIONS}; direct_vm.mock_web(r"example\\.com",{"status":200,"body":"terms"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response))
+    response={d:"NOT_ADDRESSED" for d in DIMENSIONS}; direct_vm.mock_web(r"example\.com",{"status":200,"body":"terms"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response))
     c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("hist","H","x","https://example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid)
     assert len(c.get_policy_history(sid,0,10))==1
