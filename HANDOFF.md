@@ -1,5 +1,16 @@
 # TermsRail corrective-pass handoff
 
+## Current Final Release
+
+- Contract: `0xd4FB52094c1DED0Ca71fc29D6E85Eff8E9089a8A`
+- Deployment tx: `0x9426e572331f1f70f68f3ffe1b0cdc23b73a0e6abea18c7978bc7476cd2131f5`
+- Source SHA-256: `B16AA5E274651C5EF9FA1C582CC2E8E7F7BAFDE1FC786ED2955B72C52DCA614C`
+- Schema: PASS
+- Fresh service: `0x0e4acdce6e3d21d54b5ac7922a8bcdca4fdace3973a482d37b257adeaa48fdb1`
+- Fresh snapshot: `0x2e3d333db1d41bcf0ef27f7cb6f8f129f94722dffa66a60a61cf678b5854b613`
+- Fresh action: `0xa4736eab9bf77b37197ec0c5e57d6d521e35d92100a0643c8b347908452b5c3b`
+- Fresh authorization: `0xc45e0998193923d4b79fb53cc0a8856ae3763138f9565369c510a13f3bf19bda`
+
 ## Status
 
 READY FOR SUBMISSION — final source deployed and fresh Studionet lifecycle evidence recorded below.
