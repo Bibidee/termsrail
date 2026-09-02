@@ -24,6 +24,8 @@ Fresh final lifecycle: service registration tx `0xa2b044622020a66fc579d6048c999f
 
 Semantic change check tx `0x6cae4b32e00c12878360bc43716b74798913e1eb95d1b038eb0add0898dd89ce` (MAJORITY_AGREE, NON_MATERIAL_CHANGE).
 
+Invalidation tx `0xd235a4c947268913f703c2702f1b8a5235d28fc0d90e7a5947abfb017e94429d` (source version 2, NEEDS_SNAPSHOT); rebuild tx `0x61f57e4c7cc14f24ef647db46744c35b89d02e8d0003ce9b11fec9fede8640c4` (MAJORITY_AGREE, policy version 2); reassessment tx `0x69813824b5253a87f4e8ef1d7ddd8509076d0368579439dfc3303c300d36e3ad` (MAJORITY_AGREE).
+
 | Operation | Result |
 |---|---|
 | Fresh deployment | PASS; tx `0xaac13e2c07d7bf52d847b9cb21d7cc904ddc69cae5ae04fbc8359c34366ea126` |
