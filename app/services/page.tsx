@@ -3,7 +3,7 @@ import Link from 'next/link';
 import {useEffect,useState} from 'react';
 import {clientFor,connectWallet,CONTRACT_ADDRESS,Eip1193} from '../../lib/genlayer';
 type Service={id?:string|number;service_id?:string|number;service_key?:string;service_name?:string;service_domain?:string;policy_version?:string|number;policy_status?:string;source_urls?:unknown[]};
-const parse=(raw:string):Service=>{try{return JSON.parse(raw)}catch{return {name:raw}}};
+const parse=(raw:string):Service=>{try{return JSON.parse(raw)}catch{return {service_name:raw}}};
 export default function Services(){
  const[rows,setRows]=useState<Service[]>([]),[state,setState]=useState('LOADING POLICY REGISTRY…');
  const load=async()=>{try{const p=(window as Window&{ethereum?:Eip1193}).ethereum;if(!p){setState('CONNECT A WALLET TO READ CANONICAL SERVICES.');return}const a=await connectWallet(p),c=clientFor(a as `0x${string}`,p);const result=await c.readContract({address:CONTRACT_ADDRESS as `0x${string}`,functionName:'get_services',args:[0n,50n] as never[]}) as string[];setRows((result||[]).map(parse));setState(result?.length?'':'NO SERVICES REGISTERED YET.')}catch(e){setState(e instanceof Error?e.message:'CANONICAL READ FAILED')}};
