@@ -1,47 +1,28 @@
-# TERMSRAIL — Frontend UX & UI
+# TermsRail Frontend UX
 
-## Visual direction
-Railway signalling control panel × legal redline document × machine policy console.
+TermsRail is a cool, bright policy-infrastructure product with its own identity. It does not reproduce Jestor’s palette, layout, card system, typography, branding, wording, or component geometry.
 
-Do NOT use purple/blue AI gradients, glassmorphism, glow, robots/brains/sparkles, chatbot UI, giant rounded SaaS cards, neon, gradient buttons, generic metric-card dashboard, pill overload or legal-scale clip art.
+## Design system
 
-Suggested palette: signal-paper off-white, dark control ink, muted rules, proceed green, caution amber, stop red, restrained signal blue.
-Use one sans + one mono. Use 0–4px radii, hard rules and minimal shadow.
+- Pale cool mint-grey background with a subtle blue grid
+- Electric blue, cyan, mint, coral, lavender, and white surfaces
+- Deep navy text and crisp blue outlines
+- Bold editorial headings paired with readable body text; monospace only for hashes, IDs, and canonical records
+- Route/checkpoint motif: **SOURCE → SNAPSHOT → ACTION → GO**
+- Text always accompanies status colour: ALLOWED, CONDITIONAL, RESTRICTED, PROHIBITED, UNKNOWN, CONFLICTING
 
-## Signature elements
-### Signal Head
-PROCEED / CAUTION / STOP with text plus colour.
+## Product surfaces
 
-### Policy Rail
-`POLICY V003 ───●─── POLICY V004` with material-change marker.
+The homepage introduces the policy route and links to the live registry. Services use a structured board and service cards. The service control room presents canonical metadata, policy-dimension tiles, source ledger, policy timeline, change timeline, execution gates, and raw canonical details. The Action Builder uses bounded controls for all ten action types and validates contract invariants before submission. Wallet and network state remain visible and truthful.
 
-### Action Track
-Show each action dimension flowing into the final signal.
+## Transaction safety
 
-### Redline panel
-Show bounded dimension changes such as `redistribution: ALLOWED → PROHIBITED`, not huge prose diffs.
+Every mutation is presented as:
 
-## Required pages
-- `/` policy execution board
-- `/services/new`
-- `/service/[id]`
-- `/action/new`
-- `/action/[id]`
-- `/changes`
-- `/about`
+`SUBMIT → FINALIZED → FINISHED_WITH_RETURN VERIFIED → CANONICAL READBACK → SUCCESS`
 
-Service detail shows policy dimensions, versions, source ledger, history, BUILD SNAPSHOT, CHECK POLICY CHANGE and UPDATE SOURCES.
+Finality alone is never treated as success. Snapshot builds require canonical policy/snapshot advancement. Policy-change checks require canonical change-history advancement, so UNCHANGED and NON_MATERIAL_CHANGE succeed even when the service object is unchanged. Reachable change states are UNCHANGED, NON_MATERIAL_CHANGE, MATERIAL_CHANGE, and POLICY_UNAVAILABLE. UNKNOWN_CHANGE is canonical/reserved but unreachable in the frozen implementation.
 
-Action detail shows structured action, signal, verdict, execution gate, match dimensions, versions/freshness/spec match and authorization history.
+## Accessibility and responsive behavior
 
-Transaction progression:
-SUBMITTING → LEADER EXECUTION → VALIDATOR REVIEW → CONSENSUS → FINALISED → CANONICAL READBACK → UPDATED.
-Never show UPDATED before readback.
-
-Mobile must use compact signal/policy rows, not giant cards. Accessible focus, keyboard nav, AA contrast, 44px touch targets and non-colour-only statuses.
-## Current TermsRail frontend
-
-The live interface uses a cool-bright route/checkpoint visual language: electric blue, cyan, mint, coral, lavender, white surfaces, and deep navy text. It intentionally avoids a yellow-dominant or Jestor-like treatment. Services, policy dimensions, execution gates, transaction progress, and change history are presented as labelled state blocks; canonical values are always paired with text and never conveyed by color alone. The POLICY ROUTE animation communicates SOURCE → SNAPSHOT → ACTION → GO and respects reduced-motion preferences. Transaction success is shown only after finalized execution verification and canonical contract readback. The layout is responsive, with accessible focus states and mobile-friendly navigation.
-## Frozen-release note
-
-`UNKNOWN_CHANGE` remains in the canonical change-state schema, but the frozen implementation normalizes evidence to `SUFFICIENT`, `PARTIAL`, or `UNAVAILABLE`; therefore that branch is unreachable through the public lifecycle. Executable coverage covers all currently reachable states.
+Status uses text plus colour, focus states remain visible, controls target comfortable touch sizes, and layouts remain readable from mobile through widescreen. The route/checkpoint animation respects `prefers-reduced-motion` and becomes static when reduced motion is requested.
