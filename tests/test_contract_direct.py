@@ -108,3 +108,15 @@ def test_all_unavailable_fails_closed_without_shape_disagreement(direct_deploy, 
     c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12")
     sid=c.register_service("offline","Offline","x","https://offline.invalid/p","SCRAPING_POLICY",86400)
     with direct_vm.expect_revert("snapshot evidence is not sufficient"): c.build_policy_snapshot(sid)
+
+def test_material_change_full_lifecycle(direct_deploy, direct_vm):
+    initial={d:"NOT_ADDRESSED" for d in DIMENSIONS}; initial["automation"]="ALLOWED"
+    updated=dict(initial); updated["automation"]="PROHIBITED"
+    direct_vm.mock_web(r"policy",{"status":200,"body":"policy text"})
+    direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(initial))
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("mat","M","x","https://policy.example/p","TERMS_OF_SERVICE",86400); assert c.build_policy_snapshot(sid)=="1"
+    aid=c.register_action(sid,"api","API_CALL","read",fields(automation="YES")); c.authorize_action(aid)
+    direct_vm.mock_llm(r"operative policy meaning",json.dumps(updated))
+    state=c.check_policy_change(sid)
+    assert state=="MATERIAL_CHANGE" and '"policy_version": 1' in c.get_service(sid) and '"unresolved_change": true' in c.get_service(sid)
+    assert c.rebuild_policy_snapshot(sid)=="2"; assert '"policy_version": 2' in c.get_service(sid); c.reassess_action(aid)
