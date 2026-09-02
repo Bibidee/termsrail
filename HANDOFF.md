@@ -13,7 +13,7 @@
 
 - Direct Mode: 18 passed in hosted CI
 - GenVM lint: PASS
-- Frontend tests: 12 passed
+- Frontend tests: 14 passed
 - Typecheck: PASS
 - ESLint: 0 errors, 0 warnings
 - Production build: PASS
@@ -22,3 +22,5 @@
 ## Frontend safeguards
 
 The UI validates the contract address at runtime, uses canonical service fields, restores wallets passively with `eth_accounts`, keeps wallet account separate from contract target, verifies finalized execution plus canonical readback, and routes newly registered actions/services to their canonical IDs. Registry lookup paginates until the requested key is found.
+
+Reachable change states are `UNCHANGED`, `NON_MATERIAL_CHANGE`, `MATERIAL_CHANGE`, and `POLICY_UNAVAILABLE`. `UNKNOWN_CHANGE` is canonical/reserved but unreachable in the frozen implementation. `check_policy_change` is verified by canonical change-history advancement.
