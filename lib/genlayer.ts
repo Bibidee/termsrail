@@ -3,12 +3,13 @@ import { studionet } from 'genlayer-js/chains';
 import { TransactionStatus, ExecutionResult } from 'genlayer-js/types';
 
 export const STUDIONET_CHAIN_ID = 61999;
-export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ?? '';
+export const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ?? '').trim();
 export type Eip1193 = { request(args: { method: string; params?: unknown[] }): Promise<unknown>; on?: (event: string, handler: (...args: unknown[]) => void) => void; removeListener?: (event: string, handler: (...args: unknown[]) => void) => void };
 
-export function requireContract() { if (!/^0x[0-9a-fA-F]{40}$/.test(CONTRACT_ADDRESS)) throw new Error('Contract not configured. Set NEXT_PUBLIC_CONTRACT_ADDRESS.'); return CONTRACT_ADDRESS as `0x${string}`; }
+export function requireContract() { if (!/^0x[0-9a-fA-F]{40}$/.test(CONTRACT_ADDRESS)) throw new Error('TermsRail contract is not configured correctly.'); return CONTRACT_ADDRESS as `0x${string}`; }
 export function assertSuccessfulExecution(execution: unknown): void { if (execution !== ExecutionResult.FINISHED_WITH_RETURN) throw new Error(`Transaction execution failed: ${execution ?? 'UNKNOWN'}`); }
 export function resolveServiceId(rows: string[], serviceKey: string): string | number | undefined { for (const raw of rows) { try { const value = JSON.parse(raw) as {service_key?:string;id?:string|number;service_id?:string|number}; if (value.service_key === serviceKey) return value.id ?? value.service_id; } catch {} } return undefined; }
+export function resolveActionId(rows: string[], actionKey: string): string | number | undefined { for (const raw of rows) { try { const value = JSON.parse(raw) as {action_key?:string;id?:string|number;action_id?:string|number}; if (value.action_key === actionKey) return value.id ?? value.action_id; } catch {} } return undefined; }
 export async function connectWallet(provider: Eip1193) {
   const accounts = await provider.request({ method: 'eth_requestAccounts' }) as string[];
   const chain = await provider.request({ method: 'eth_chainId' });
