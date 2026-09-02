@@ -77,3 +77,19 @@ def test_action_defaults_and_unknown_policy_fail_closed(direct_deploy, direct_vm
 def test_pagination_cap_rejected(direct_deploy, direct_vm):
     c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12")
     with direct_vm.expect_revert("invalid pagination"): c.get_services(0,51)
+
+def test_remaining_action_invariants(direct_deploy, direct_vm):
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("inv","I","example.com","https://example.com/p","TERMS_OF_SERVICE",86400)
+    cases=[("delegate","AGENT_DELEGATION",{"delegation":"NO"},"delegation invariant"),("account","ACCOUNT_ACTION",{"account_operation":"NONE"},"account operation invariant"),("message","AUTOMATED_MESSAGE",{"automation":"NO"},"automation invariant"),("purchase","AUTOMATED_PURCHASE",{"automation":"NO"},"automation invariant"),("collect","DATA_COLLECTION",{},"collection invariant")]
+    for key,typ,over,msg in cases:
+        with direct_vm.expect_revert(msg): c.register_action(sid,key,typ,"bad",fields(**over))
+
+def test_ipv6_private_ranges_rejected(direct_deploy, direct_vm):
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12")
+    for host in ("[::1]","[fd00::1]","[fe80::1]"):
+        with direct_vm.expect_revert("private or loopback"): c.register_service(host,"D","x","https://"+host+"/p","TERMS_OF_SERVICE",86400)
+
+def test_history_sequence_after_snapshot(direct_deploy, direct_vm):
+    response={d:"NOT_ADDRESSED" for d in DIMENSIONS}; direct_vm.mock_web(r"example\\.com",{"status":200,"body":"terms"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response))
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("hist","H","x","https://example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid)
+    assert len(c.get_policy_history(sid,0,10))==1

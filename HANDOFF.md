@@ -15,6 +15,9 @@
 - Semantic change: `0xab7c8383d66bd7a0bb2b608e55af784353271a5fa9b1b5490d7a6f2e62df6279` (accepted)
 - Rebuild: `0xa0dbe34c138cada362a2522999f20dabe9b72278f2e45d3077c912ac7af0ca23` (accepted)
 - Reassessment A: `0x300ec22f924bb7fefb62d3103c13ac3ad606a15d7bb73df13fdf3612c886495d` (accepted)
+- Reassessment B: `0x742383176121d1c36f5209a165c806ef2e39d526e7cb6209e523ae6d022a77e8` (accepted)
+- History readback: snapshot count 2; authorization history A/B present; change count 1.
+- Final hosted CI: [33600041421](https://github.com/Bibidee/termsrail/actions/runs/33600041421), success.
 
 ## Status
 
