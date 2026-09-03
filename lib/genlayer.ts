@@ -40,7 +40,7 @@ export function clientFor(address: `0x${string}`, provider: Eip1193) { return cr
 export type TransactionPhase='SUBMITTING'|'SUBMITTED'|'WAITING_FOR_FINALIZATION'|'FINALIZED'|'VERIFYING_EXECUTION'|'SYNCING_CANONICAL_STATE'|'CANONICAL_STATE_FOUND'|'SUCCESS'|'RPC_RETRYING'|'VERIFICATION_DELAYED';
 export type LifecycleEvent={phase:TransactionPhase;hash?:string;attempt?:number;canonicalState?:unknown};
 export async function waitForCanonicalState<T>({read,predicate,onRetry,maxDurationMs=300000}:{read:()=>Promise<T>;predicate:(value:T)=>boolean;onRetry?:(attempt:number)=>void;maxDurationMs?:number}):Promise<T>{const started=Date.now();let attempt=0;let last:T|undefined;while(Date.now()-started<maxDurationMs){try{last=await read();if(predicate(last))return last;}catch(error){if(Date.now()-started>=maxDurationMs)throw error;}attempt++;onRetry?.(attempt);const delay=attempt<10?1000:attempt<20?2000:4000;await new Promise(resolve=>setTimeout(resolve,delay));}if(last!==undefined)throw new Error('Canonical state synchronization is still in progress.');throw new Error('Canonical state synchronization timed out.');}
-export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[], readback: () => Promise<T>, expected: (value: T) => boolean, onPhase?: (event:LifecycleEvent)=>void, onCanonical?: (state:T)=>void) {
+export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[], readback: () => Promise<T>, expected: (value: T) => boolean, onPhase?: (event:LifecycleEvent)=>void) {
   const client = clientFor(address, provider);
   onPhase?.({phase:'SUBMITTING'});
   const hash = await client.writeContract({ address: requireContract(), functionName, args: args as never[], value: 0n });
@@ -53,7 +53,6 @@ export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193,
   onPhase?.({phase:'SYNCING_CANONICAL_STATE',hash});
   const executionPromise=waitForExecutionResult(client,hash,receipt);
   const statePromise=waitForCanonicalState({read:readback,predicate:expected,onRetry:attempt=>onPhase?.({phase:'RPC_RETRYING',hash,attempt})});
-  statePromise.then(value=>onCanonical?.(value)).catch(()=>undefined);
   statePromise.then(canonicalState=>onPhase?.({phase:'CANONICAL_STATE_FOUND',hash,canonicalState})).catch(()=>undefined);
   const [execution,state]=await Promise.allSettled([executionPromise,statePromise]);
   if(state.status==='rejected') throw state.reason;
