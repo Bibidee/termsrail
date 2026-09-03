@@ -34,7 +34,9 @@ export async function connectWallet(provider: Eip1193) {
   if (String(chain).toLowerCase() !== '0xf22f') await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xf22f' }] });
   return accounts[0] ?? '';
 }
-export function clientFor(address: `0x${string}`, provider: Eip1193) { return createClient({ chain: studionet, account: address, provider }); }
+function appRpcEndpoint(){return typeof window==='undefined'?(process.env.GENLAYER_RPC_URL??'https://studio.genlayer.com/api'):`${window.location.origin}/api/genlayer-rpc`;}
+const termsRailStudionet={...studionet,rpcUrls:{...studionet.rpcUrls,default:{...studionet.rpcUrls.default,http:[appRpcEndpoint()]}}};
+export function clientFor(address: `0x${string}`, provider: Eip1193) { return createClient({ chain: termsRailStudionet, account: address, provider }); }
 export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[], readback: () => Promise<T>, expected: (value: T) => boolean) {
   const client = clientFor(address, provider);
   const hash = await client.writeContract({ address: requireContract(), functionName, args: args as never[], value: 0n });
