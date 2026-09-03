@@ -54,11 +54,10 @@ export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193,
   const executionPromise=waitForExecutionResult(client,hash,receipt);
   const statePromise=waitForCanonicalState({read:readback,predicate:expected,onRetry:attempt=>onPhase?.({phase:'RPC_RETRYING',hash,attempt})});
   statePromise.then(canonicalState=>onPhase?.({phase:'CANONICAL_STATE_FOUND',hash,canonicalState})).catch(()=>undefined);
-  const state=await statePromise;
-  onPhase?.({phase:'CANONICAL_STATE_FOUND',hash,canonicalState:state});
-  const grace=await Promise.race([executionPromise,new Promise<undefined>(resolve=>setTimeout(()=>resolve(undefined),5000))]);
-  if(grace!==undefined){assertSuccessfulExecution(grace);onPhase?.({phase:'SUCCESS',hash});}
-  else {onPhase?.({phase:'VERIFICATION_DELAYED',hash});executionPromise.then(value=>{assertSuccessfulExecution(value);onPhase?.({phase:'SUCCESS',hash});}).catch(()=>onPhase?.({phase:'VERIFICATION_DELAYED',hash}));}
-  return { hash, receipt, state };
+  const [execution,state]=await Promise.allSettled([executionPromise,statePromise]);
+  if(state.status==='rejected') throw state.reason;
+  if(execution.status==='fulfilled') { assertSuccessfulExecution(execution.value); onPhase?.({phase:'SUCCESS',hash}); }
+  else onPhase?.({phase:'VERIFICATION_DELAYED',hash});
+  return { hash, receipt, state: state.value };
 }
 export async function readContract<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[] = []) { return clientFor(address, provider).readContract({ address: requireContract(), functionName, args: args as never[] }) as Promise<T>; }
