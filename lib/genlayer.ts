@@ -16,9 +16,9 @@ export function normalizeExecutionResult(receipt: unknown): string | undefined {
 export function assertSuccessfulExecution(execution: unknown): void { const normalized=normalizeExecutionResult(execution); if(normalized!==ExecutionResult.FINISHED_WITH_RETURN) throw new Error(`Transaction execution failed: ${normalized ?? 'UNKNOWN'}`); }
 export const FINALITY_INTERVAL_MS=3000;
 export const FINALITY_RETRIES=100;
-const isFinalized=(receipt:unknown)=>{const status=(receipt as {status?:unknown})?.status;return status===7||status==='7'||String(status).toUpperCase()==='FINALIZED'};
+const isFinalized=(receipt:unknown)=>{const r=receipt as {status?:unknown;statusName?:unknown;status_name?:unknown};const status=r?.status??r?.statusName??r?.status_name;return status===7||status==='7'||String(status).toUpperCase()==='FINALIZED'};
 export async function waitForFinalizedReceipt(client:any,hash:string,interval=FINALITY_INTERVAL_MS,retries=FINALITY_RETRIES):Promise<any>{let receipt=await client.waitForTransactionReceipt({hash,waitUntil:'finalized',interval,retries,fullTransaction:true} as never);if(isFinalized(receipt))return receipt;for(let attempt=0;attempt<retries;attempt++){await new Promise(resolve=>setTimeout(resolve,interval));receipt=await client.getTransaction({hash});if(isFinalized(receipt))return receipt;if(String((receipt as {status?:unknown})?.status).toUpperCase()==='CANCELED')throw new Error('Transaction was canceled');}throw new Error(`Timed out waiting for transaction ${hash} to reach FINALIZED.`)}
-export async function waitForExecutionResult(client:any,hash:string,initialReceipt:unknown,interval=1500,retries=20):Promise<string>{let result=normalizeExecutionResult(initialReceipt);if(result===ExecutionResult.FINISHED_WITH_RETURN||result===ExecutionResult.FINISHED_WITH_ERROR)return result;for(let i=0;i<retries;i++){await new Promise(resolve=>setTimeout(resolve,interval));result=normalizeExecutionResult(await client.getTransaction({hash}));if(result===ExecutionResult.FINISHED_WITH_RETURN||result===ExecutionResult.FINISHED_WITH_ERROR)return result}throw new Error(`Transaction finalized, but execution result could not yet be verified: ${hash}`)}
+export async function waitForExecutionResult(client:any,hash:string,initialReceipt:unknown,interval=1500,retries=200):Promise<string>{let result=normalizeExecutionResult(initialReceipt);if(result===ExecutionResult.FINISHED_WITH_RETURN||result===ExecutionResult.FINISHED_WITH_ERROR)return result;for(let i=0;i<retries;i++){const delay=i<20?interval:i<40?3000:5000;await new Promise(resolve=>setTimeout(resolve,delay));try{result=normalizeExecutionResult(await client.getTransaction({hash}));}catch(error){if(i===retries-1)throw error;continue}if(result===ExecutionResult.FINISHED_WITH_RETURN||result===ExecutionResult.FINISHED_WITH_ERROR)return result}throw new Error(`Transaction finalized, but execution result could not yet be verified: ${hash}`)}
 export function resolveServiceId(rows: string[], serviceKey: string): string | number | undefined { for (const raw of rows) { try { const value = JSON.parse(raw) as {service_key?:string;id?:string|number;service_id?:string|number}; if (value.service_key === serviceKey) return value.id ?? value.service_id; } catch {} } return undefined; }
 export function resolveActionId(rows: string[], actionKey: string): string | number | undefined { for (const raw of rows) { try { const value = JSON.parse(raw) as {action_key?:string;id?:string|number;action_id?:string|number}; if (value.action_key === actionKey) return value.id ?? value.action_id; } catch {} } return undefined; }
 export async function readAllRecords(readPage:(offset:bigint,limit:bigint)=>Promise<string[]>, pageSize=50n):Promise<string[]> { const out:string[]=[]; for(let offset=0n;;offset+=pageSize){const page=await readPage(offset,pageSize);out.push(...(page??[]));if((page??[]).length<Number(pageSize))return out;} }
@@ -37,15 +37,24 @@ export async function connectWallet(provider: Eip1193) {
 function appRpcEndpoint(){return typeof window==='undefined'?(process.env.GENLAYER_RPC_URL??'https://studio.genlayer.com/api'):`${window.location.origin}/api/genlayer-rpc`;}
 const termsRailStudionet={...studionet,rpcUrls:{...studionet.rpcUrls,default:{...studionet.rpcUrls.default,http:[appRpcEndpoint()]}}};
 export function clientFor(address: `0x${string}`, provider: Eip1193) { return createClient({ chain: termsRailStudionet, account: address, provider }); }
-export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[], readback: () => Promise<T>, expected: (value: T) => boolean) {
+export type TransactionPhase='SUBMITTING'|'SUBMITTED'|'WAITING_FOR_FINALIZATION'|'FINALIZED'|'VERIFYING_EXECUTION'|'SYNCING_CANONICAL_STATE'|'SUCCESS'|'RPC_RETRYING'|'VERIFICATION_DELAYED';
+export type LifecycleEvent={phase:TransactionPhase;hash?:string;attempt?:number};
+export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[], readback: () => Promise<T>, expected: (value: T) => boolean, onPhase?: (event:LifecycleEvent)=>void) {
   const client = clientFor(address, provider);
+  onPhase?.({phase:'SUBMITTING'});
   const hash = await client.writeContract({ address: requireContract(), functionName, args: args as never[], value: 0n });
+  onPhase?.({phase:'SUBMITTED',hash});
+  onPhase?.({phase:'WAITING_FOR_FINALIZATION',hash});
   const receipt = await waitForFinalizedReceipt(client,hash);
   if (!receipt) throw new Error('Transaction did not finalize');
+  onPhase?.({phase:'FINALIZED',hash});
+  onPhase?.({phase:'VERIFYING_EXECUTION',hash});
   const execution = await waitForExecutionResult(client,hash,receipt);
   assertSuccessfulExecution(execution);
+  onPhase?.({phase:'SYNCING_CANONICAL_STATE',hash});
   const state = await readback();
   if (!expected(state)) throw new Error('Canonical readback mismatch after finality');
+  onPhase?.({phase:'SUCCESS',hash});
   return { hash, receipt, state };
 }
 export async function readContract<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[] = []) { return clientFor(address, provider).readContract({ address: requireContract(), functionName, args: args as never[] }) as Promise<T>; }
