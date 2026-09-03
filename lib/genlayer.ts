@@ -39,6 +39,7 @@ const termsRailStudionet={...studionet,rpcUrls:{...studionet.rpcUrls,default:{..
 export function clientFor(address: `0x${string}`, provider: Eip1193) { return createClient({ chain: termsRailStudionet, account: address, provider }); }
 export type TransactionPhase='SUBMITTING'|'SUBMITTED'|'WAITING_FOR_FINALIZATION'|'FINALIZED'|'VERIFYING_EXECUTION'|'SYNCING_CANONICAL_STATE'|'SUCCESS'|'RPC_RETRYING'|'VERIFICATION_DELAYED';
 export type LifecycleEvent={phase:TransactionPhase;hash?:string;attempt?:number};
+export async function waitForCanonicalState<T>({read,predicate,onRetry,maxDurationMs=120000}:{read:()=>Promise<T>;predicate:(value:T)=>boolean;onRetry?:(attempt:number)=>void;maxDurationMs?:number}):Promise<T>{const started=Date.now();let attempt=0;let last:T|undefined;while(Date.now()-started<maxDurationMs){try{last=await read();if(predicate(last))return last;}catch(error){if(Date.now()-started>=maxDurationMs)throw error;}attempt++;onRetry?.(attempt);const delay=attempt<10?1000:attempt<20?2000:4000;await new Promise(resolve=>setTimeout(resolve,delay));}if(last!==undefined)throw new Error('Canonical state synchronization is still in progress.');throw new Error('Canonical state synchronization timed out.');}
 export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[], readback: () => Promise<T>, expected: (value: T) => boolean, onPhase?: (event:LifecycleEvent)=>void) {
   const client = clientFor(address, provider);
   onPhase?.({phase:'SUBMITTING'});
@@ -49,11 +50,11 @@ export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193,
   if (!receipt) throw new Error('Transaction did not finalize');
   onPhase?.({phase:'FINALIZED',hash});
   onPhase?.({phase:'VERIFYING_EXECUTION',hash});
-  const execution = await waitForExecutionResult(client,hash,receipt);
-  assertSuccessfulExecution(execution);
   onPhase?.({phase:'SYNCING_CANONICAL_STATE',hash});
-  const state = await readback();
-  if (!expected(state)) throw new Error('Canonical readback mismatch after finality');
+  const executionPromise=waitForExecutionResult(client,hash,receipt);
+  const statePromise=waitForCanonicalState({read:readback,predicate:expected,onRetry:attempt=>onPhase?.({phase:'RPC_RETRYING',hash,attempt})});
+  const [execution,state]=await Promise.all([executionPromise,statePromise]);
+  assertSuccessfulExecution(execution);
   onPhase?.({phase:'SUCCESS',hash});
   return { hash, receipt, state };
 }
