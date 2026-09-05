@@ -22,6 +22,8 @@ Authorization is judgement against a specific action + source universe + policy 
 Source update: increment source_version, preserve history, close gate, require new snapshot.
 Material policy change: advance policy_version, preserve history, close gate for old authorizations, require reassessment.
 
+An explicit allowance is never silently weakened. If any dimension changes from ALLOWED to another value—including NOT_ADDRESSED or UNKNOWN—the change is material: the current snapshot is invalidated immediately and the gate stays closed through snapshot rebuild until a current reassessment permits the action.
+
 TTL is deterministic. LLM never decides staleness.
 
 Expose structured execution state with verdict, freshness, spec/source/policy matches and `execution_authorized`.

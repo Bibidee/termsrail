@@ -126,8 +126,60 @@ def test_change_state_unchanged(direct_deploy, direct_vm):
     c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("unchanged","U","x","https://same.example/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); assert c.check_policy_change(sid)=="UNCHANGED"
 
 def test_change_state_non_material(direct_deploy, direct_vm):
-    initial={d:"ALLOWED" for d in DIMENSIONS}; updated=dict(initial); updated["automation"]="NOT_ADDRESSED"; direct_vm.mock_web(r"nonmaterial",{"status":200,"body":"stable"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(initial)); direct_vm.mock_llm(r"operative policy meaning",json.dumps(updated))
+    initial={d:"NOT_ADDRESSED" for d in DIMENSIONS}; updated=dict(initial); updated["automation"]="UNKNOWN"; direct_vm.mock_web(r"nonmaterial",{"status":200,"body":"stable"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(initial)); direct_vm.mock_llm(r"operative policy meaning",json.dumps(updated))
     c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("nonmaterial","N","x","https://nonmaterial.example/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); assert c.check_policy_change(sid)=="NON_MATERIAL_CHANGE"
+
+def test_allowed_to_not_addressed_invalidates_gate_through_reassessment(direct_deploy, direct_vm):
+    initial={d:"NOT_ADDRESSED" for d in DIMENSIONS}; initial["automation"]="ALLOWED"
+    updated=dict(initial); updated["automation"]="NOT_ADDRESSED"
+    direct_vm.mock_web(r"allowance-loss-na",{"status":200,"body":"policy text"})
+    direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(initial))
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12")
+    sid=c.register_service("allowance-loss-na","Allowance loss","x","https://allowance-loss-na.example/p","TERMS_OF_SERVICE",86400)
+    c.build_policy_snapshot(sid)
+    aid=c.register_action(sid,"api","API_CALL","automated API call",fields(automation="YES"))
+    assert c.authorize_action(aid)=="ALLOWED"
+    action=json.loads(c.get_action(aid))
+    assert c.is_action_authorized(aid,1,action["spec_hash"]) is True
+
+    direct_vm.mock_llm(r"operative policy meaning",json.dumps(updated))
+    assert c.check_policy_change(sid)=="MATERIAL_CHANGE"
+    assert c.is_action_authorized(aid,1,action["spec_hash"]) is False
+    assert '"policy_status": "NEEDS_SNAPSHOT"' in c.get_service(sid)
+    assert '"unresolved_change": true' in c.get_service(sid)
+
+    direct_vm.clear_mocks()
+    direct_vm.mock_web(r"allowance-loss-na",{"status":200,"body":"policy text"})
+    direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(updated))
+    assert c.rebuild_policy_snapshot(sid)=="2"
+    assert c.is_action_authorized(aid,2,action["spec_hash"]) is False
+    assert c.reassess_action(aid)=="CONDITIONAL"
+    assert c.is_action_authorized(aid,2,action["spec_hash"]) is False
+
+def test_allowed_to_unknown_invalidates_until_rebuild_and_reassessment(direct_deploy, direct_vm):
+    initial={d:"NOT_ADDRESSED" for d in DIMENSIONS}; initial["automation"]="ALLOWED"
+    uncertain=dict(initial); uncertain["automation"]="UNKNOWN"
+    direct_vm.mock_web(r"allowance-loss-unknown",{"status":200,"body":"policy text"})
+    direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(initial))
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12")
+    sid=c.register_service("allowance-loss-unknown","Allowance loss","x","https://allowance-loss-unknown.example/p","TERMS_OF_SERVICE",86400)
+    c.build_policy_snapshot(sid)
+    aid=c.register_action(sid,"api","API_CALL","automated API call",fields(automation="YES"))
+    assert c.authorize_action(aid)=="ALLOWED"
+    action=json.loads(c.get_action(aid))
+    assert c.is_action_authorized(aid,1,action["spec_hash"]) is True
+
+    direct_vm.mock_llm(r"operative policy meaning",json.dumps(uncertain))
+    assert c.check_policy_change(sid)=="MATERIAL_CHANGE"
+    assert c.is_action_authorized(aid,1,action["spec_hash"]) is False
+
+    direct_vm.clear_mocks()
+    direct_vm.mock_web(r"allowance-loss-unknown",{"status":200,"body":"policy text"})
+    direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(initial))
+    assert c.rebuild_policy_snapshot(sid)=="2"
+    assert c.is_action_authorized(aid,2,action["spec_hash"]) is False
+    assert c.reassess_action(aid)=="ALLOWED"
+    assert c.is_action_authorized(aid,2,action["spec_hash"]) is True
 
 def test_change_state_policy_unavailable_fails_closed(direct_deploy, direct_vm):
     response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"policy-unavailable",{"status":200,"body":"stable operative policy"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response))
