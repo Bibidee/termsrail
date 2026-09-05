@@ -3,7 +3,7 @@ import { studionet } from 'genlayer-js/chains';
 import { ExecutionResult, executionResultNumberToName } from 'genlayer-js/types';
 
 export const STUDIONET_CHAIN_ID = 61999;
-export const FROZEN_TERMSRAIL_CONTRACT = '0xd4FB52094c1DED0Ca71fc29D6E85Eff8E9089a8A' as const;
+export const FROZEN_TERMSRAIL_CONTRACT = '0x1de664E55F92BAcda496afBCfFA1b9b0Cf0a8457' as const;
 const ADDRESS_PATTERN=/^0x[0-9a-fA-F]{40}$/;
 export function resolveContractAddress(value:string|undefined): `0x${string}` { const candidate=(value??'').trim(); return (ADDRESS_PATTERN.test(candidate)?candidate:FROZEN_TERMSRAIL_CONTRACT) as `0x${string}`; }
 export const CONTRACT_ADDRESS = resolveContractAddress(process.env.NEXT_PUBLIC_CONTRACT_ADDRESS);
