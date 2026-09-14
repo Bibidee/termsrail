@@ -61,6 +61,7 @@ class TermsRail(gl.Contract):
     changes: TreeMap[str,str]; change_histories: TreeMap[str,DynArray[str]]
     next_service_id: u256; next_action_id: u256
     plans: TreeMap[str,str]; plan_ids: DynArray[str]; plan_authorizations: TreeMap[str,str]; plan_authorization_histories: TreeMap[str,DynArray[str]]; next_plan_id: u256
+    escrows: TreeMap[str,str]; escrow_ids: DynArray[str]; escrow_histories: TreeMap[str,DynArray[str]]; next_escrow_id: u256
 
     def __init__(self): pass
     def service(self,sid):
@@ -260,6 +261,55 @@ class TermsRail(gl.Contract):
             service=self.service(step["service_id"])
             if current["spec_hash"]!=binding.get("action_spec_hash") or service["policy_version"]!=binding.get("policy_version") or service["source_version"]!=binding.get("source_version") or service["policy_status"]!="ACTIVE" or service["unresolved_change"] or not self.is_action_authorized(step["action_id"],service["policy_version"],current["spec_hash"]):return False
         return True
+
+    @gl.public.write
+    def create_escrow(self,pid:str,recipient:str,amount:u256,deadline:u256)->str:
+        raw=self.plans.get(str(pid),"")
+        if not raw: raise gl.vm.UserError("plan not found")
+        plan=json.loads(raw)
+        if not recipient or amount<=0 or deadline<=now(): raise gl.vm.UserError("invalid escrow terms")
+        if not self.is_plan_executable(pid): raise gl.vm.UserError("executable plan required")
+        eid=str(self.next_escrow_id); self.next_escrow_id+=1
+        auth=json.loads(self.plan_authorizations.get(str(pid),"{}"))
+        escrow={"escrow_id":eid,"plan_id":str(pid),"plan_hash":plan.get("plan_hash",""),"authorization_id":digest(auth),"payer":str(gl.message.sender_address),"recipient":recipient,"amount":int(amount),"created_at":now(),"funded_at":0,"deadline":int(deadline),"status":"CREATED"}
+        encoded=json.dumps(escrow,sort_keys=True); self.escrows[eid]=encoded; self.escrow_ids.append(eid); self.escrow_histories[eid]=[encoded]; return eid
+
+    @gl.public.write
+    def fund_escrow(self,eid:str)->str:
+        raw=self.escrows.get(str(eid),"")
+        if not raw: raise gl.vm.UserError("escrow not found")
+        escrow=json.loads(raw)
+        if str(gl.message.sender_address)!=escrow["payer"]: raise gl.vm.UserError("permission denied")
+        if escrow["status"]!="CREATED": raise gl.vm.UserError("invalid escrow state")
+        if not self.is_plan_executable(escrow["plan_id"]): raise gl.vm.UserError("plan authorization stale")
+        escrow.update({"status":"FUNDED","funded_at":now()}); encoded=json.dumps(escrow,sort_keys=True); self.escrows[str(eid)]=encoded; self.escrow_histories[str(eid)].append(encoded); return "FUNDED"
+
+    @gl.public.write
+    def lock_escrow(self,eid:str)->str:
+        raw=self.escrows.get(str(eid),"")
+        if not raw: raise gl.vm.UserError("escrow not found")
+        escrow=json.loads(raw); self.owner({"creator":escrow["payer"]})
+        if escrow["status"]!="FUNDED": raise gl.vm.UserError("funded escrow required")
+        if not self.is_plan_executable(escrow["plan_id"]): raise gl.vm.UserError("plan authorization stale")
+        escrow["status"]="LOCKED"; encoded=json.dumps(escrow,sort_keys=True); self.escrows[str(eid)]=encoded; self.escrow_histories[str(eid)].append(encoded); return "LOCKED"
+
+    @gl.public.view
+    def get_escrow(self,eid:str)->str:return self.escrows.get(str(eid),"")
+    @gl.public.view
+    def get_escrows(self,offset:u256=0,limit:u256=20)->list[str]:return self.page([self.escrows[x] for x in self.escrow_ids],int(offset),int(limit))
+    @gl.public.view
+    def get_escrow_history(self,eid:str,offset:u256=0,limit:u256=20)->list[str]:return self.page(self.escrow_histories.get(str(eid),[]),int(offset),int(limit))
+    @gl.public.view
+    def get_escrow_execution_state(self,eid:str)->str:
+        raw=self.escrows.get(str(eid),"")
+        if not raw:return json.dumps({"settlement_allowed":False,"reason":"ESCROW_NOT_FOUND"},sort_keys=True)
+        escrow=json.loads(raw); plan_raw=self.plans.get(escrow["plan_id"],""); plan=json.loads(plan_raw) if plan_raw else {}; executable=bool(plan_raw and self.is_plan_executable(escrow["plan_id"]))
+        return json.dumps({"plan_exists":bool(plan_raw),"plan_hash_match":bool(plan_raw and plan.get("plan_hash")==escrow.get("plan_hash")),"plan_authorized":bool(self.plan_authorizations.get(escrow["plan_id"],"")),"authorization_current":executable,"policy_versions_current":executable,"source_versions_current":executable,"action_specs_current":executable,"policy_change_pending":not executable,"escrow_funded":escrow["status"] in ("FUNDED","LOCKED"),"escrow_frozen":not executable,"completion_required":True,"settlement_allowed":False,"reason":"READY" if executable else "POLICY_OR_AUTHORIZATION_STALE"},sort_keys=True)
+    @gl.public.view
+    def is_escrow_executable(self,eid:str)->bool:
+        raw=self.escrows.get(str(eid),"")
+        if not raw:return False
+        escrow=json.loads(raw); return escrow["status"] in ("FUNDED","LOCKED") and self.is_plan_executable(escrow["plan_id"])
 
     def change_consensus(self,value,snapshot):
         def leader_fn():
