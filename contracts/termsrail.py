@@ -10,6 +10,7 @@ MATCH_VALUES=["SATISFIED","CONDITIONAL","RESTRICTED","VIOLATES","NOT_APPLICABLE"
 ROLES=["TERMS_OF_SERVICE","ACCEPTABLE_USE_POLICY","API_TERMS","DEVELOPER_TERMS","AUTOMATION_POLICY","SCRAPING_POLICY","DATA_POLICY","COMMERCIAL_USE_POLICY","OTHER_POLICY"]
 ACTION_TYPES=["DATA_COLLECTION","API_CALL","AUTOMATED_PURCHASE","AUTOMATED_MESSAGE","ACCOUNT_ACTION","MODEL_TRAINING","DATA_REDISTRIBUTION","AGENT_DELEGATION","CONTENT_GENERATION","OTHER"]
 MAX_SOURCES,MAX_PAGE=12,50
+MAX_PLANS,MAX_PLAN_STEPS=256,32
 MAX_SERVICES,MAX_ACTIONS,MAX_SNAPSHOTS_PER_SERVICE,MAX_AUTHS_PER_ACTION,MAX_CHANGES_PER_SERVICE=256,1024,32,64,64
 EVIDENCE_VALUES=["SUFFICIENT","PARTIAL","INSUFFICIENT","UNAVAILABLE","UNKNOWN"]
 CHANGE_VALUES=["UNCHANGED","NON_MATERIAL_CHANGE","MATERIAL_CHANGE","POLICY_UNAVAILABLE","UNKNOWN_CHANGE"]
@@ -59,6 +60,7 @@ class TermsRail(gl.Contract):
     authorizations: TreeMap[str,str]; authorization_histories: TreeMap[str,DynArray[str]]
     changes: TreeMap[str,str]; change_histories: TreeMap[str,DynArray[str]]
     next_service_id: u256; next_action_id: u256
+    plans: TreeMap[str,str]; plan_ids: DynArray[str]; plan_authorizations: TreeMap[str,str]; next_plan_id: u256
 
     def __init__(self): pass
     def service(self,sid):
@@ -71,6 +73,10 @@ class TermsRail(gl.Contract):
     def page(self,values,offset,limit):
         if offset<0 or limit<=0 or limit>MAX_PAGE: raise gl.vm.UserError("invalid pagination")
         return [x for x in values[offset:offset+limit]]
+    def action_record(self,aid):
+        raw=self.actions.get(str(aid),"")
+        if not raw: raise gl.vm.UserError("action not found")
+        return json.loads(raw)
 
     @gl.public.write
     def register_service(self,service_key:str,service_name:str,service_domain:str,sources:str,roles:str,ttl_seconds:u256=86400)->str:
@@ -210,6 +216,47 @@ class TermsRail(gl.Contract):
         auth={"action_id":str(aid),"sequence":sequence,"policy_version":value["policy_version"],"source_version":value["source_version"],"spec_hash":action["spec_hash"],"matches":matches,"evidence_state":matches["evidence_state"],"reason_code":matches["reason_code"],"verdict":self.verdict(matches),"valid_until":valid_until,"created_at":now()}; encoded=json.dumps(auth,sort_keys=True); self.authorizations[str(aid)]=encoded
         if not history: self.authorization_histories[str(aid)]=[]
         self.authorization_histories[str(aid)].append(encoded); return auth["verdict"]
+
+    @gl.public.write
+    def create_plan(self,title:str,description:str,steps:str)->str:
+        title,description=clean(title,160),clean(description,2000)
+        try: parsed=json.loads(steps)
+        except Exception: raise gl.vm.UserError("invalid plan steps")
+        if not isinstance(parsed,list) or not parsed or len(parsed)>MAX_PLAN_STEPS: raise gl.vm.UserError("invalid plan steps")
+        bound=[]
+        for i,step in enumerate(parsed):
+            if not isinstance(step,dict): raise gl.vm.UserError("invalid plan step")
+            sid,aid=str(step.get("service_id","")),str(step.get("action_id","")); self.service(sid); action=self.action_record(aid)
+            if action.get("service_id")!=sid: raise gl.vm.UserError("action does not belong to service")
+            bound.append({"step_index":i,"service_id":sid,"action_id":aid,"action_spec_hash":action["spec_hash"],"required":bool(step.get("required",True))})
+        if len(self.plan_ids)>=MAX_PLANS: raise gl.vm.UserError("plan capacity reached")
+        pid=str(self.next_plan_id); self.next_plan_id+=1; plan={"plan_id":pid,"creator":str(gl.message.sender_address),"title":title,"description":description,"created_at":now(),"status":"DRAFT","steps":bound,"version":1}; self.plans[pid]=json.dumps(plan,sort_keys=True); self.plan_ids.append(pid); return pid
+
+    @gl.public.write
+    def authorize_plan(self,pid:str)->str:
+        raw=self.plans.get(str(pid),"")
+        if not raw: raise gl.vm.UserError("plan not found")
+        plan=json.loads(raw); self.owner(plan); verdicts=[]; bindings=[]; precedence={"POLICY_CONFLICT":5,"PROHIBITED":4,"UNKNOWN":3,"RESTRICTED":2,"CONDITIONAL":1,"ALLOWED":0}
+        for step in plan["steps"]:
+            action=self.action_record(step["action_id"]); current=action["spec_hash"]; old=step["action_spec_hash"]; ar=self.authorizations.get(step["action_id"],""); auth=json.loads(ar) if ar else {}; verdict=auth.get("verdict","UNKNOWN") if current==old else "UNKNOWN"; verdicts.append({"step_index":step["step_index"],"verdict":verdict}); bindings.append({"service_id":step["service_id"],"action_id":step["action_id"],"action_spec_hash":current})
+        overall=max((x["verdict"] for x in verdicts),key=lambda x:precedence.get(x,3)); result={"plan_id":str(pid),"creator":plan["creator"],"step_verdicts":verdicts,"bindings":bindings,"overall_verdict":overall,"issued_at":now(),"status":"VALID" if overall=="ALLOWED" else "BLOCKED"}; self.plan_authorizations[str(pid)]=json.dumps(result,sort_keys=True); plan["status"]="AUTHORIZED"; self.plans[str(pid)]=json.dumps(plan,sort_keys=True); return json.dumps(result,sort_keys=True)
+
+    @gl.public.view
+    def get_plan(self,pid:str)->str:return self.plans.get(str(pid),"")
+    @gl.public.view
+    def get_plans(self,offset:u256=0,limit:u256=20)->list[str]:return self.page([self.plans[x] for x in self.plan_ids],int(offset),int(limit))
+    @gl.public.view
+    def get_plan_authorization(self,pid:str)->str:return self.plan_authorizations.get(str(pid),"")
+    @gl.public.view
+    def is_plan_executable(self,pid:str)->bool:
+        raw,ar=self.plans.get(str(pid),""),self.plan_authorizations.get(str(pid),"")
+        if not raw or not ar:return False
+        plan,auth=json.loads(raw),json.loads(ar)
+        if auth.get("overall_verdict")!="ALLOWED" or auth.get("status")!="VALID":return False
+        for step,binding in zip(plan["steps"],auth.get("bindings",[])):
+            current=self.action_record(step["action_id"])
+            if current["spec_hash"]!=binding.get("action_spec_hash") or not self.is_action_authorized(step["action_id"],self.service(step["service_id"])["policy_version"],current["spec_hash"]):return False
+        return True
 
     def change_consensus(self,value,snapshot):
         def leader_fn():
