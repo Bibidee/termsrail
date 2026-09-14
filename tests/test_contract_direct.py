@@ -188,3 +188,23 @@ def test_change_state_policy_unavailable_fails_closed(direct_deploy, direct_vm):
     direct_vm.clear_mocks(); direct_vm.mock_web(r"policy-unavailable",{"status":500,"body":""}); direct_vm.mock_llm(r"operative policy meaning",json.dumps(response))
     assert c.check_policy_change(sid)=="POLICY_UNAVAILABLE"; service_after=c.get_service(sid); assert '"policy_status": "NEEDS_SNAPSHOT"' in service_after and '"unresolved_change": true' in service_after
     history=c.get_change_history(sid,0,10); assert len(history)==1 and '"change_state": "POLICY_UNAVAILABLE"' in history[0] and '"evidence_state": "UNAVAILABLE"' in history[0]
+
+def test_agent_plan_creation_binding_and_execution_gate(direct_deploy, direct_vm):
+    response={d:"NOT_ADDRESSED" for d in DIMENSIONS}; direct_vm.mock_web(r"plan",{"status":200,"body":"stable terms"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response))
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12")
+    s1=c.register_service("plan-s1","Plan One","plan.example.com","https://plan.example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(s1)
+    s2=c.register_service("plan-s2","Plan Two","plan2.example.com","https://plan2.example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(s2)
+    a1=c.register_action(s1,"plan-a1","OTHER","step one",fields()); a2=c.register_action(s2,"plan-a2","OTHER","step two",fields()); c.authorize_action(a1); c.authorize_action(a2)
+    pid=c.create_plan("Two-step plan","bounded execution",json.dumps([{"service_id":s1,"action_id":a1,"required":True},{"service_id":s2,"action_id":a2,"required":False}]))
+    plan=json.loads(c.get_plan(pid)); assert plan["plan_id"]==pid and len(plan["steps"])==2 and plan["plan_hash"]
+    auth=json.loads(c.authorize_plan(pid)); assert auth["overall_verdict"]=="ALLOWED" and len(auth["bindings"])==2; assert c.is_plan_executable(pid) is True
+
+def test_agent_plan_rejects_invalid_references_and_blocked_verdict(direct_deploy, direct_vm):
+    response={d:"NOT_ADDRESSED" for d in DIMENSIONS}; direct_vm.mock_web(r"plan-invalid",{"status":200,"body":"terms"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response))
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("plan-invalid","Plan Invalid","plan-invalid.example.com","https://plan-invalid.example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid)
+    aid=c.register_action(sid,"plan-invalid-a","OTHER","step",fields())
+    with direct_vm.expect_revert("action not found"): c.create_plan("bad","bad",json.dumps([{"service_id":sid,"action_id":"999"}]))
+    sid2=c.register_service("plan-invalid-2","Plan Invalid Two","plan-invalid-2.example.com","https://plan-invalid-2.example.com/p","TERMS_OF_SERVICE",86400)
+    with direct_vm.expect_revert("action does not belong to service"): c.create_plan("bad","bad",json.dumps([{"service_id":sid2,"action_id":aid}]))
+    c.authorize_action(aid); pid=c.create_plan("blocked","blocked",json.dumps([{"service_id":sid,"action_id":aid}]))
+    assert json.loads(c.authorize_plan(pid))["status"]=="VALID"

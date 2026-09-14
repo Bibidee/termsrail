@@ -60,7 +60,7 @@ class TermsRail(gl.Contract):
     authorizations: TreeMap[str,str]; authorization_histories: TreeMap[str,DynArray[str]]
     changes: TreeMap[str,str]; change_histories: TreeMap[str,DynArray[str]]
     next_service_id: u256; next_action_id: u256
-    plans: TreeMap[str,str]; plan_ids: DynArray[str]; plan_authorizations: TreeMap[str,str]; next_plan_id: u256
+    plans: TreeMap[str,str]; plan_ids: DynArray[str]; plan_authorizations: TreeMap[str,str]; plan_authorization_histories: TreeMap[str,DynArray[str]]; next_plan_id: u256
 
     def __init__(self): pass
     def service(self,sid):
@@ -230,7 +230,7 @@ class TermsRail(gl.Contract):
             if action.get("service_id")!=sid: raise gl.vm.UserError("action does not belong to service")
             bound.append({"step_index":i,"service_id":sid,"action_id":aid,"action_spec_hash":action["spec_hash"],"required":bool(step.get("required",True))})
         if len(self.plan_ids)>=MAX_PLANS: raise gl.vm.UserError("plan capacity reached")
-        pid=str(self.next_plan_id); self.next_plan_id+=1; plan={"plan_id":pid,"creator":str(gl.message.sender_address),"title":title,"description":description,"created_at":now(),"status":"DRAFT","steps":bound,"version":1}; self.plans[pid]=json.dumps(plan,sort_keys=True); self.plan_ids.append(pid); return pid
+        pid=str(self.next_plan_id); self.next_plan_id+=1; plan={"plan_id":pid,"creator":str(gl.message.sender_address),"title":title,"description":description,"created_at":now(),"status":"DRAFT","steps":bound,"version":1}; plan["plan_hash"]=digest({"title":title,"description":description,"steps":bound,"version":1}); self.plans[pid]=json.dumps(plan,sort_keys=True); self.plan_ids.append(pid); return pid
 
     @gl.public.write
     def authorize_plan(self,pid:str)->str:
@@ -238,8 +238,10 @@ class TermsRail(gl.Contract):
         if not raw: raise gl.vm.UserError("plan not found")
         plan=json.loads(raw); self.owner(plan); verdicts=[]; bindings=[]; precedence={"POLICY_CONFLICT":5,"PROHIBITED":4,"UNKNOWN":3,"RESTRICTED":2,"CONDITIONAL":1,"ALLOWED":0}
         for step in plan["steps"]:
-            action=self.action_record(step["action_id"]); current=action["spec_hash"]; old=step["action_spec_hash"]; ar=self.authorizations.get(step["action_id"],""); auth=json.loads(ar) if ar else {}; verdict=auth.get("verdict","UNKNOWN") if current==old else "UNKNOWN"; verdicts.append({"step_index":step["step_index"],"verdict":verdict}); bindings.append({"service_id":step["service_id"],"action_id":step["action_id"],"action_spec_hash":current})
-        overall=max((x["verdict"] for x in verdicts),key=lambda x:precedence.get(x,3)); result={"plan_id":str(pid),"creator":plan["creator"],"step_verdicts":verdicts,"bindings":bindings,"overall_verdict":overall,"issued_at":now(),"status":"VALID" if overall=="ALLOWED" else "BLOCKED"}; self.plan_authorizations[str(pid)]=json.dumps(result,sort_keys=True); plan["status"]="AUTHORIZED"; self.plans[str(pid)]=json.dumps(plan,sort_keys=True); return json.dumps(result,sort_keys=True)
+            action=self.action_record(step["action_id"]); service=self.service(step["service_id"]); current=action["spec_hash"]; old=step["action_spec_hash"]; ar=self.authorizations.get(step["action_id"],""); auth=json.loads(ar) if ar else {}; verdict=auth.get("verdict","UNKNOWN") if current==old else "UNKNOWN"; verdicts.append({"step_index":step["step_index"],"verdict":verdict}); bindings.append({"service_id":step["service_id"],"action_id":step["action_id"],"action_spec_hash":current,"policy_version":service["policy_version"],"source_version":service["source_version"]})
+        overall=max((x["verdict"] for x in verdicts),key=lambda x:precedence.get(x,3)); result={"plan_id":str(pid),"creator":plan["creator"],"plan_hash":plan.get("plan_hash",""),"plan_version":plan.get("version",1),"step_verdicts":verdicts,"bindings":bindings,"overall_verdict":overall,"issued_at":now(),"expires_at":now()+86400,"status":"VALID" if overall=="ALLOWED" else "BLOCKED"}; encoded=json.dumps(result,sort_keys=True); self.plan_authorizations[str(pid)]=encoded; history=self.plan_authorization_histories.get(str(pid));
+        if not history: self.plan_authorization_histories[str(pid)]=[]
+        self.plan_authorization_histories[str(pid)].append(encoded); plan["status"]="AUTHORIZED"; self.plans[str(pid)]=json.dumps(plan,sort_keys=True); return encoded
 
     @gl.public.view
     def get_plan(self,pid:str)->str:return self.plans.get(str(pid),"")
@@ -252,10 +254,11 @@ class TermsRail(gl.Contract):
         raw,ar=self.plans.get(str(pid),""),self.plan_authorizations.get(str(pid),"")
         if not raw or not ar:return False
         plan,auth=json.loads(raw),json.loads(ar)
-        if auth.get("overall_verdict")!="ALLOWED" or auth.get("status")!="VALID":return False
+        if auth.get("overall_verdict")!="ALLOWED" or auth.get("status")!="VALID" or auth.get("expires_at",0)<now() or auth.get("plan_hash")!=plan.get("plan_hash") or auth.get("plan_version")!=plan.get("version",1):return False
         for step,binding in zip(plan["steps"],auth.get("bindings",[])):
             current=self.action_record(step["action_id"])
-            if current["spec_hash"]!=binding.get("action_spec_hash") or not self.is_action_authorized(step["action_id"],self.service(step["service_id"])["policy_version"],current["spec_hash"]):return False
+            service=self.service(step["service_id"])
+            if current["spec_hash"]!=binding.get("action_spec_hash") or service["policy_version"]!=binding.get("policy_version") or service["source_version"]!=binding.get("source_version") or service["policy_status"]!="ACTIVE" or service["unresolved_change"] or not self.is_action_authorized(step["action_id"],service["policy_version"],current["spec_hash"]):return False
         return True
 
     def change_consensus(self,value,snapshot):
