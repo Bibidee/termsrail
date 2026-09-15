@@ -62,6 +62,8 @@ class TermsRail(gl.Contract):
     next_service_id: u256; next_action_id: u256
     plans: TreeMap[str,str]; plan_ids: DynArray[str]; plan_authorizations: TreeMap[str,str]; plan_authorization_histories: TreeMap[str,DynArray[str]]; next_plan_id: u256
     escrows: TreeMap[str,str]; escrow_ids: DynArray[str]; escrow_histories: TreeMap[str,DynArray[str]]; next_escrow_id: u256
+    completions: TreeMap[str,str]; completion_ids: DynArray[str]; adjudications: TreeMap[str,str]; adjudication_histories: TreeMap[str,DynArray[str]]; next_completion_id: u256
+    disputes: TreeMap[str,str]; dispute_ids: DynArray[str]; dispute_histories: TreeMap[str,DynArray[str]]; next_dispute_id: u256
 
     def __init__(self): pass
     def service(self,sid):
@@ -317,6 +319,78 @@ class TermsRail(gl.Contract):
         raw=self.escrows.get(str(eid),"")
         if not raw:return False
         escrow=json.loads(raw); return escrow["status"] in ("FUNDED","LOCKED") and self.is_plan_executable(escrow["plan_id"])
+
+    @gl.public.write
+    def submit_completion(self,eid:str,statement:str,evidence_urls:str,evidence_hashes:str)->str:
+        raw=self.escrows.get(str(eid),"")
+        if not raw: raise gl.vm.UserError("escrow not found")
+        escrow=json.loads(raw); statement=clean(statement,2000); urls,hashes=items(evidence_urls),items(evidence_hashes)
+        if str(gl.message.sender_address) not in (escrow["payer"],escrow["recipient"]): raise gl.vm.UserError("permission denied")
+        if escrow["status"] not in ("FUNDED","LOCKED","AWAITING_COMPLETION"): raise gl.vm.UserError("invalid escrow state")
+        if len(urls)>8 or len(hashes)>8 or len(urls)!=len(hashes): raise gl.vm.UserError("invalid evidence bounds")
+        for url in urls: url_ok(url)
+        cid=str(self.next_completion_id); self.next_completion_id+=1; record={"completion_id":cid,"escrow_id":str(eid),"plan_id":escrow["plan_id"],"submitter":str(gl.message.sender_address),"statement":statement,"evidence_urls":urls,"evidence_hashes":hashes,"submitted_at":now(),"status":"SUBMITTED"}; self.completions[cid]=json.dumps(record,sort_keys=True); self.completion_ids.append(cid); escrow["status"]="UNDER_REVIEW"; self.escrows[str(eid)]=json.dumps(escrow,sort_keys=True); self.escrow_histories[str(eid)].append(self.escrows[str(eid)]); return cid
+
+    @gl.public.write
+    def adjudicate_completion(self,cid:str)->str:
+        raw=self.completions.get(str(cid),"")
+        if not raw: raise gl.vm.UserError("completion not found")
+        completion=json.loads(raw); eraw=self.escrows.get(completion["escrow_id"],""); escrow=json.loads(eraw) if eraw else {}
+        if not eraw or escrow["status"]!="UNDER_REVIEW": raise gl.vm.UserError("completion not reviewable")
+        verdict="EVIDENCE_INSUFFICIENT"
+        try:
+            result=gl.nondet.exec_prompt("Classify completion evidence. Return only one category: COMPLETED, PARTIALLY_COMPLETED, NOT_COMPLETED, EVIDENCE_INSUFFICIENT, EVIDENCE_CONFLICT.\n"+completion["statement"],response_format="json")
+            candidate=result.get("verdict","") if isinstance(result,dict) else ""
+            if candidate in ("COMPLETED","PARTIALLY_COMPLETED","NOT_COMPLETED","EVIDENCE_INSUFFICIENT","EVIDENCE_CONFLICT"): verdict=candidate
+        except Exception: pass
+        aid=str(self.next_completion_id); self.next_completion_id+=1; record={"adjudication_id":aid,"completion_id":str(cid),"escrow_id":completion["escrow_id"],"verdict":verdict,"evidence_state":"SUFFICIENT" if verdict in ("COMPLETED","NOT_COMPLETED") else "PARTIAL","timestamp":now()}; self.adjudications[aid]=json.dumps(record,sort_keys=True); hist=self.adjudication_histories.get(str(cid));
+        if not hist:self.adjudication_histories[str(cid)]=[]
+        self.adjudication_histories[str(cid)].append(self.adjudications[aid]); completion["status"]="ADJUDICATED"; self.completions[str(cid)]=json.dumps(completion,sort_keys=True); return aid
+
+    @gl.public.write
+    def release_escrow(self,eid:str)->str:
+        raw=self.escrows.get(str(eid),"");
+        if not raw: raise gl.vm.UserError("escrow not found")
+        escrow=json.loads(raw); self.owner({"creator":escrow["payer"]})
+        if not self.is_escrow_executable(eid): raise gl.vm.UserError("escrow execution blocked")
+        found=False
+        for cid in self.completion_ids:
+            c=json.loads(self.completions[cid]);
+            if c["escrow_id"]==str(eid):
+                for aid in self.adjudication_histories.get(cid,[]):
+                    if json.loads(aid)["verdict"]=="COMPLETED": found=True
+        if not found: raise gl.vm.UserError("completed adjudication required")
+        escrow["status"]="RELEASED"; self.escrows[str(eid)]=json.dumps(escrow,sort_keys=True); self.escrow_histories[str(eid)].append(self.escrows[str(eid)]); return "RELEASED"
+
+    @gl.public.write
+    def refund_escrow(self,eid:str)->str:
+        raw=self.escrows.get(str(eid),"");
+        if not raw: raise gl.vm.UserError("escrow not found")
+        escrow=json.loads(raw); self.owner({"creator":escrow["payer"]})
+        if not self.is_escrow_executable(eid): raise gl.vm.UserError("escrow execution blocked")
+        found=False
+        for cid in self.completion_ids:
+            c=json.loads(self.completions[cid]);
+            if c["escrow_id"]==str(eid):
+                for aid in self.adjudication_histories.get(cid,[]):
+                    if json.loads(aid)["verdict"]=="NOT_COMPLETED": found=True
+        if not found: raise gl.vm.UserError("not-completed adjudication required")
+        escrow["status"]="REFUNDED"; self.escrows[str(eid)]=json.dumps(escrow,sort_keys=True); self.escrow_histories[str(eid)].append(self.escrows[str(eid)]); return "REFUNDED"
+
+    @gl.public.write
+    def open_dispute(self,eid:str,statement:str)->str:
+        raw=self.escrows.get(str(eid),"");
+        if not raw: raise gl.vm.UserError("escrow not found")
+        escrow=json.loads(raw)
+        if str(gl.message.sender_address) not in (escrow["payer"],escrow["recipient"]): raise gl.vm.UserError("permission denied")
+        if escrow["status"] not in ("UNDER_REVIEW","LOCKED","FUNDED"): raise gl.vm.UserError("invalid dispute state")
+        did=str(self.next_dispute_id); self.next_dispute_id+=1; record={"dispute_id":did,"escrow_id":str(eid),"opener":str(gl.message.sender_address),"statement":clean(statement,2000),"status":"OPEN","created_at":now()}; self.disputes[did]=json.dumps(record,sort_keys=True); self.dispute_ids.append(did); self.dispute_histories[did]=[self.disputes[did]]; escrow["status"]="DISPUTED"; self.escrows[str(eid)]=json.dumps(escrow,sort_keys=True); self.escrow_histories[str(eid)].append(self.escrows[str(eid)]); return did
+    @gl.public.view
+    def get_completion(self,cid:str)->str:return self.completions.get(str(cid),"")
+    @gl.public.view
+    def get_adjudication(self,aid:str)->str:return self.adjudications.get(str(aid),"")
+    @gl.public.view
+    def get_dispute(self,did:str)->str:return self.disputes.get(str(did),"")
 
     def change_consensus(self,value,snapshot):
         def leader_fn():
