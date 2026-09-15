@@ -1,0 +1,1 @@
+export default function Receipts(){return <div className="shell"><p className="kicker">TRUST / RECEIPTS</p><h1>Authorization Receipts</h1><p className="lede">Stable, inspectable proof of a plan’s policy-bound authorization.</p><section className="empty-state"><h2>NO RECEIPTS YET.</h2><p>Receipts are created when an Agent Plan is authorized.</p></section></div>}

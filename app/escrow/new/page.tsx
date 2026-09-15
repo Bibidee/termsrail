@@ -1,0 +1,2 @@
+import Link from 'next/link';
+export default function NewEscrow(){return <div className="shell"><p className="kicker">ESCROW BUILDER / 01</p><h1>Create Escrow</h1><p className="lede">Escrow creation requires a currently executable plan authorization.</p><section className="panel"><p>Connect a wallet to select a canonical plan and specify bounded settlement terms.</p><Link className="button primary" href="/escrow">BACK TO ESCROW</Link></section></div>}

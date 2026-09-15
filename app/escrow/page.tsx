@@ -1,0 +1,2 @@
+import Link from 'next/link';
+export default function Escrow(){return <div className="shell"><p className="kicker">SETTLEMENT / ESCROW</p><div className="page-heading"><div><h1>Escrow</h1><p className="lede">Funds remain gated by current plan authorization.</p></div><Link className="button primary" href="/escrow/new">+ CREATE ESCROW</Link></div><section className="empty-state"><h2>NO ESCROWS REGISTERED YET.</h2><p>Escrow records appear after they are bound to an executable Agent Plan.</p></section></div>}

@@ -1,0 +1,2 @@
+import Link from 'next/link';
+export default function NewPlan(){return <div className="shell"><p className="kicker">PLAN BUILDER / 01</p><h1>Create an Agent Plan</h1><p className="lede">Create and authorize a bounded sequence against canonical services and actions.</p><section className="panel"><h2>PLAN SETUP</h2><p>Connect a wallet to load canonical services and actions, then add required steps.</p><Link className="button primary" href="/plans">BACK TO PLANS</Link></section></div>}

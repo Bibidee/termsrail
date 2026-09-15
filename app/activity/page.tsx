@@ -1,0 +1,1 @@
+export default function Activity(){return <div className="shell"><p className="kicker">NETWORK / ACTIVITY</p><h1>Activity</h1><p className="lede">A unified timeline for plan, policy and settlement events.</p><section className="empty-state"><h2>THE TRACKS ARE QUIET.</h2><p>Canonical events will appear here as v2 records are created.</p></section></div>}
