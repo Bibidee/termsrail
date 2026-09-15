@@ -251,6 +251,13 @@ class TermsRail(gl.Contract):
     @gl.public.view
     def get_plan_authorization(self,pid:str)->str:return self.plan_authorizations.get(str(pid),"")
     @gl.public.view
+    def get_receipt(self,pid:str)->str:
+        raw=self.plan_authorizations.get(str(pid),"")
+        if not raw:return ""
+        auth=json.loads(raw); plan=json.loads(self.plans.get(str(pid),"{}")); receipt={"receipt_id":digest({"plan_id":str(pid),"plan_hash":auth.get("plan_hash"),"issued_at":auth.get("issued_at")}),"plan_id":str(pid),"plan_hash":auth.get("plan_hash",""),"authorization_id":digest(auth),"creator":plan.get("creator",""),"service_ids":[x["service_id"] for x in plan.get("steps",[])],"policy_versions":[x.get("policy_version",0) for x in auth.get("bindings",[])],"source_versions":[x.get("source_version",0) for x in auth.get("bindings",[])],"action_spec_hashes":[x.get("action_spec_hash","") for x in auth.get("bindings",[])],"step_verdicts":auth.get("step_verdicts",[]),"overall_verdict":auth.get("overall_verdict","UNKNOWN"),"issued_at":auth.get("issued_at",0),"expires_at":auth.get("expires_at",0),"current_status":auth.get("status","STALE")}; return json.dumps(receipt,sort_keys=True)
+    @gl.public.view
+    def is_receipt_valid(self,pid:str)->bool:return self.is_plan_executable(pid)
+    @gl.public.view
     def is_plan_executable(self,pid:str)->bool:
         raw,ar=self.plans.get(str(pid),""),self.plan_authorizations.get(str(pid),"")
         if not raw or not ar:return False
@@ -343,13 +350,32 @@ class TermsRail(gl.Contract):
         sequence=(len(history) if history else 0)+1; record={"service_id":str(sid),"sequence":sequence,"from_policy_version":value["policy_version"],"source_version":value["source_version"],"change_state":result["change_state"],"changed_dimensions":result["changed_dimensions"],"evidence_state":result["evidence_state"],"reason_code":result.get("reason_code","CHANGE_CHECKED"),"checked_at":now()}; encoded=json.dumps(record,sort_keys=True); self.changes[str(sid)]=encoded
         if not history: self.change_histories[str(sid)]=[]
         self.change_histories[str(sid)].append(encoded)
-        if result["change_state"] in ("MATERIAL_CHANGE","POLICY_UNAVAILABLE","UNKNOWN_CHANGE"): value.update({"policy_status":"NEEDS_SNAPSHOT","policy_valid_until":0,"unresolved_change":True}); self.save_service(value)
+        if result["change_state"] in ("MATERIAL_CHANGE","POLICY_UNAVAILABLE","UNKNOWN_CHANGE"):
+            value.update({"policy_status":"NEEDS_SNAPSHOT","policy_valid_until":0,"unresolved_change":True}); self.save_service(value)
+            for pid in self.plan_ids:
+                praw=self.plans.get(pid,""); ar=self.plan_authorizations.get(pid,"")
+                if not praw or not ar: continue
+                plan=json.loads(praw)
+                if any(step["service_id"]==str(sid) for step in plan.get("steps",[])):
+                    auth=json.loads(ar); auth["status"]="STALE"; self.plan_authorizations[pid]=json.dumps(auth,sort_keys=True); plan["status"]="POLICY_CHANGE_PENDING"; self.plans[pid]=json.dumps(plan,sort_keys=True)
+            for eid in self.escrow_ids:
+                eraw=self.escrows.get(eid,"")
+                if not eraw: continue
+                escrow=json.loads(eraw); linked=json.loads(self.plans.get(escrow["plan_id"],"{}"))
+                if any(step["service_id"]==str(sid) for step in linked.get("steps",[])) and escrow["status"] in ("FUNDED","LOCKED"):
+                    escrow["status"]="FROZEN_POLICY_CHANGE"; ee=json.dumps(escrow,sort_keys=True); self.escrows[eid]=ee; self.escrow_histories[eid].append(ee)
         return result["change_state"]
 
     @gl.public.write
     def rebuild_policy_snapshot(self,sid:str)->str: return self.build_policy_snapshot(sid)
     @gl.public.write
     def reassess_action(self,aid:str)->str: return self.authorize_action(aid)
+    @gl.public.write
+    def reassess_plan(self,pid:str)->str:
+        raw=self.plans.get(str(pid),"")
+        if not raw: raise gl.vm.UserError("plan not found")
+        plan=json.loads(raw); self.owner(plan)
+        return self.authorize_plan(pid)
     def fresh(self,until): return until>=now()
     @gl.public.view
     def is_policy_fresh(self,sid:str)->bool:
