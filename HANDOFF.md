@@ -19,6 +19,14 @@
 - Production build: PASS
 - Exact-head CI: PASS (see GitHub Actions history for the release commit)
 
+## v2 checkpoint
+
+- Current frontend/contract checkpoint: inspect `git log -1` (HEAD is intentionally not embedded here).
+- Agent Plans: bounded multi-step creation, policy-bound authorization, stale invalidation, reassessment and receipts implemented.
+- Escrow: plan-bound creation, funding/locking, policy-change freeze, completion evidence, normalized adjudication, guarded release/refund and dispute opening implemented.
+- Frontend routes: `/plans`, `/plans/new`, `/plans/[id]`, `/escrow`, `/escrow/new`, `/escrow/[id]`, `/receipts`, `/receipts/[id]`, `/activity`.
+- v2 deployment: NOT YET DEPLOYED. The accepted v1 contract remains the production deployment until v2 exact-head CI and live lifecycle proof are complete.
+
 ## Frontend safeguards
 
 The UI validates the contract address at runtime, uses canonical service fields, restores wallets passively with `eth_accounts`, keeps wallet account separate from contract target, verifies finalized execution plus canonical readback, and routes newly registered actions/services to their canonical IDs. Registry lookup paginates until the requested key is found.

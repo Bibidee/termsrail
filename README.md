@@ -5,6 +5,10 @@ Studionet contract: `0x1de664E55F92BAcda496afBCfFA1b9b0Cf0a8457` (chain 61999). 
 
 TermsRail is a Next.js dApp and GenLayer Intelligent Contract for consensus-backed policy execution gates. Policy snapshot extraction and material policy-change detection use semantic consensus; structured action authorization is deterministic derivation over the accepted snapshot.
 
+## v2 policy-gated commerce
+
+Agent Plans bind bounded multi-step actions to a plan hash, policy/source versions and append-only authorization receipts. Escrow records bind payer, recipient and amount to an executable plan; unsafe policy changes stale authorizations and freeze funded escrows before settlement. Completion evidence is bounded and adjudicated into normalized verdicts before guarded release/refund or dispute handling. The v2 UI exposes Plans, Escrow, Receipts and Activity routes while preserving canonical reads and finalized transaction verification.
+
 ## Run
 
 ```bash
