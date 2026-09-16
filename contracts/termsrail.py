@@ -64,6 +64,7 @@ class TermsRail(gl.Contract):
     escrows: TreeMap[str,str]; escrow_ids: DynArray[str]; escrow_histories: TreeMap[str,DynArray[str]]; next_escrow_id: u256
     completions: TreeMap[str,str]; completion_ids: DynArray[str]; adjudications: TreeMap[str,str]; adjudication_histories: TreeMap[str,DynArray[str]]; next_completion_id: u256
     disputes: TreeMap[str,str]; dispute_ids: DynArray[str]; dispute_histories: TreeMap[str,DynArray[str]]; next_dispute_id: u256
+    receipts: TreeMap[str,str]; receipt_ids: DynArray[str]; plan_receipt_histories: TreeMap[str,DynArray[str]]
 
     def __init__(self): pass
     def service(self,sid):
@@ -80,6 +81,12 @@ class TermsRail(gl.Contract):
         raw=self.actions.get(str(aid),"")
         if not raw: raise gl.vm.UserError("action not found")
         return json.loads(raw)
+    def current_plan_authorization_id(self,pid):
+        raw=self.plan_authorizations.get(str(pid),""); return digest(json.loads(raw)) if raw else ""
+    def escrow_binding_valid(self,eid):
+        raw=self.escrows.get(str(eid),"")
+        if not raw:return False
+        escrow=json.loads(raw); plan=json.loads(self.plans.get(escrow["plan_id"],"{}")); return bool(plan and plan.get("plan_hash")==escrow.get("plan_hash") and self.current_plan_authorization_id(escrow["plan_id"])==escrow.get("authorization_id"))
 
     @gl.public.write
     def register_service(self,service_key:str,service_name:str,service_domain:str,sources:str,roles:str,ttl_seconds:u256=86400)->str:
@@ -231,7 +238,9 @@ class TermsRail(gl.Contract):
             if not isinstance(step,dict): raise gl.vm.UserError("invalid plan step")
             sid,aid=str(step.get("service_id","")),str(step.get("action_id","")); self.service(sid); action=self.action_record(aid)
             if action.get("service_id")!=sid: raise gl.vm.UserError("action does not belong to service")
-            bound.append({"step_index":i,"service_id":sid,"action_id":aid,"action_spec_hash":action["spec_hash"],"required":bool(step.get("required",True))})
+            required=step.get("required",True)
+            if not isinstance(required,bool): raise gl.vm.UserError("required must be boolean")
+            bound.append({"step_index":i,"service_id":sid,"action_id":aid,"action_spec_hash":action["spec_hash"],"required":required})
         if len(self.plan_ids)>=MAX_PLANS: raise gl.vm.UserError("plan capacity reached")
         pid=str(self.next_plan_id); self.next_plan_id+=1; plan={"plan_id":pid,"creator":str(gl.message.sender_address),"title":title,"description":description,"created_at":now(),"status":"DRAFT","steps":bound,"version":1}; plan["plan_hash"]=digest({"title":title,"description":description,"steps":bound,"version":1}); self.plans[pid]=json.dumps(plan,sort_keys=True); self.plan_ids.append(pid); return pid
 
@@ -241,10 +250,13 @@ class TermsRail(gl.Contract):
         if not raw: raise gl.vm.UserError("plan not found")
         plan=json.loads(raw); self.owner(plan); verdicts=[]; bindings=[]; precedence={"POLICY_CONFLICT":5,"PROHIBITED":4,"UNKNOWN":3,"RESTRICTED":2,"CONDITIONAL":1,"ALLOWED":0}
         for step in plan["steps"]:
-            action=self.action_record(step["action_id"]); service=self.service(step["service_id"]); current=action["spec_hash"]; old=step["action_spec_hash"]; ar=self.authorizations.get(step["action_id"],""); auth=json.loads(ar) if ar else {}; verdict=auth.get("verdict","UNKNOWN") if current==old else "UNKNOWN"; verdicts.append({"step_index":step["step_index"],"verdict":verdict}); bindings.append({"service_id":step["service_id"],"action_id":step["action_id"],"action_spec_hash":current,"policy_version":service["policy_version"],"source_version":service["source_version"]})
+            action=self.action_record(step["action_id"]); service=self.service(step["service_id"]); current=action["spec_hash"]; old=step["action_spec_hash"]; ar=self.authorizations.get(step["action_id"],""); auth=json.loads(ar) if ar else {}; valid=bool(ar and current==old and service["policy_status"]=="ACTIVE" and not service["unresolved_change"] and self.fresh(auth.get("valid_until",0)) and auth.get("policy_version")==service["policy_version"] and auth.get("source_version")==service["source_version"] and auth.get("spec_hash")==current and auth.get("verdict")=="ALLOWED"); verdict=auth.get("verdict","UNKNOWN") if valid else "UNKNOWN"; verdicts.append({"step_index":step["step_index"],"verdict":verdict,"required":step.get("required",True)}); bindings.append({"service_id":step["service_id"],"action_id":step["action_id"],"action_spec_hash":current,"policy_version":service["policy_version"],"source_version":service["source_version"]})
         overall=max((x["verdict"] for x in verdicts),key=lambda x:precedence.get(x,3)); result={"plan_id":str(pid),"creator":plan["creator"],"plan_hash":plan.get("plan_hash",""),"plan_version":plan.get("version",1),"step_verdicts":verdicts,"bindings":bindings,"overall_verdict":overall,"issued_at":now(),"expires_at":now()+86400,"status":"VALID" if overall=="ALLOWED" else "BLOCKED"}; encoded=json.dumps(result,sort_keys=True); self.plan_authorizations[str(pid)]=encoded; history=self.plan_authorization_histories.get(str(pid));
         if not history: self.plan_authorization_histories[str(pid)]=[]
-        self.plan_authorization_histories[str(pid)].append(encoded); plan["status"]="AUTHORIZED"; self.plans[str(pid)]=json.dumps(plan,sort_keys=True); return encoded
+        self.plan_authorization_histories[str(pid)].append(encoded)
+        receipt_id=digest({"plan_id":str(pid),"plan_hash":result["plan_hash"],"authorization_id":digest(result),"issued_at":result["issued_at"]}); receipt={"receipt_id":receipt_id,"plan_id":str(pid),"plan_hash":result["plan_hash"],"authorization_id":digest(result),"creator":plan["creator"],"service_ids":[x["service_id"] for x in plan["steps"]],"policy_versions":[x.get("policy_version",0) for x in bindings],"source_versions":[x.get("source_version",0) for x in bindings],"action_spec_hashes":[x.get("action_spec_hash","") for x in bindings],"step_verdicts":verdicts,"overall_verdict":overall,"issued_at":result["issued_at"],"expires_at":result["expires_at"],"status":"VALID" if overall=="ALLOWED" else "BLOCKED"}; self.receipts[receipt_id]=json.dumps(receipt,sort_keys=True); self.receipt_ids.append(receipt_id); rh=self.plan_receipt_histories.get(str(pid));
+        if not rh:self.plan_receipt_histories[str(pid)]=[]
+        self.plan_receipt_histories[str(pid)].append(receipt_id); plan["status"]="AUTHORIZED"; self.plans[str(pid)]=json.dumps(plan,sort_keys=True); return encoded
 
     @gl.public.view
     def get_plan(self,pid:str)->str:return self.plans.get(str(pid),"")
@@ -253,12 +265,16 @@ class TermsRail(gl.Contract):
     @gl.public.view
     def get_plan_authorization(self,pid:str)->str:return self.plan_authorizations.get(str(pid),"")
     @gl.public.view
-    def get_receipt(self,pid:str)->str:
-        raw=self.plan_authorizations.get(str(pid),"")
-        if not raw:return ""
-        auth=json.loads(raw); plan=json.loads(self.plans.get(str(pid),"{}")); receipt={"receipt_id":digest({"plan_id":str(pid),"plan_hash":auth.get("plan_hash"),"issued_at":auth.get("issued_at")}),"plan_id":str(pid),"plan_hash":auth.get("plan_hash",""),"authorization_id":digest(auth),"creator":plan.get("creator",""),"service_ids":[x["service_id"] for x in plan.get("steps",[])],"policy_versions":[x.get("policy_version",0) for x in auth.get("bindings",[])],"source_versions":[x.get("source_version",0) for x in auth.get("bindings",[])],"action_spec_hashes":[x.get("action_spec_hash","") for x in auth.get("bindings",[])],"step_verdicts":auth.get("step_verdicts",[]),"overall_verdict":auth.get("overall_verdict","UNKNOWN"),"issued_at":auth.get("issued_at",0),"expires_at":auth.get("expires_at",0),"current_status":auth.get("status","STALE")}; return json.dumps(receipt,sort_keys=True)
+    def get_receipt(self,rid:str)->str:return self.receipts.get(str(rid),"")
     @gl.public.view
-    def is_receipt_valid(self,pid:str)->bool:return self.is_plan_executable(pid)
+    def get_plan_receipts(self,pid:str,offset:u256=0,limit:u256=20)->list[str]:return self.page([self.receipts[x] for x in self.plan_receipt_histories.get(str(pid),[])],int(offset),int(limit))
+    @gl.public.view
+    def get_receipts(self,offset:u256=0,limit:u256=20)->list[str]:return self.page([self.receipts[x] for x in self.receipt_ids],int(offset),int(limit))
+    @gl.public.view
+    def is_receipt_valid(self,rid:str)->bool:
+        raw=self.receipts.get(str(rid),"")
+        if not raw:return False
+        receipt=json.loads(raw); auth_raw=self.plan_authorization_histories.get(receipt["plan_id"],[]); current=self.current_plan_authorization_id(receipt["plan_id"]); return receipt["authorization_id"]==current and receipt["overall_verdict"]=="ALLOWED" and receipt["expires_at"]>=now() and self.is_plan_executable(receipt["plan_id"])
     @gl.public.view
     def is_plan_executable(self,pid:str)->bool:
         raw,ar=self.plans.get(str(pid),""),self.plan_authorizations.get(str(pid),"")
@@ -290,7 +306,7 @@ class TermsRail(gl.Contract):
         escrow=json.loads(raw)
         if str(gl.message.sender_address)!=escrow["payer"]: raise gl.vm.UserError("permission denied")
         if escrow["status"]!="CREATED": raise gl.vm.UserError("invalid escrow state")
-        if not self.is_plan_executable(escrow["plan_id"]): raise gl.vm.UserError("plan authorization stale")
+        if now()>escrow["deadline"] or not self.escrow_binding_valid(eid) or not self.is_plan_executable(escrow["plan_id"]): raise gl.vm.UserError("plan authorization stale or escrow expired")
         escrow.update({"status":"FUNDED","funded_at":now()}); encoded=json.dumps(escrow,sort_keys=True); self.escrows[str(eid)]=encoded; self.escrow_histories[str(eid)].append(encoded); return "FUNDED"
 
     @gl.public.write
@@ -299,7 +315,7 @@ class TermsRail(gl.Contract):
         if not raw: raise gl.vm.UserError("escrow not found")
         escrow=json.loads(raw); self.owner({"creator":escrow["payer"]})
         if escrow["status"]!="FUNDED": raise gl.vm.UserError("funded escrow required")
-        if not self.is_plan_executable(escrow["plan_id"]): raise gl.vm.UserError("plan authorization stale")
+        if now()>escrow["deadline"] or not self.escrow_binding_valid(eid) or not self.is_plan_executable(escrow["plan_id"]): raise gl.vm.UserError("plan authorization stale or escrow expired")
         escrow["status"]="LOCKED"; encoded=json.dumps(escrow,sort_keys=True); self.escrows[str(eid)]=encoded; self.escrow_histories[str(eid)].append(encoded); return "LOCKED"
 
     @gl.public.view
@@ -312,13 +328,30 @@ class TermsRail(gl.Contract):
     def get_escrow_execution_state(self,eid:str)->str:
         raw=self.escrows.get(str(eid),"")
         if not raw:return json.dumps({"settlement_allowed":False,"reason":"ESCROW_NOT_FOUND"},sort_keys=True)
-        escrow=json.loads(raw); plan_raw=self.plans.get(escrow["plan_id"],""); plan=json.loads(plan_raw) if plan_raw else {}; executable=bool(plan_raw and self.is_plan_executable(escrow["plan_id"]))
-        return json.dumps({"plan_exists":bool(plan_raw),"plan_hash_match":bool(plan_raw and plan.get("plan_hash")==escrow.get("plan_hash")),"plan_authorized":bool(self.plan_authorizations.get(escrow["plan_id"],"")),"authorization_current":executable,"policy_versions_current":executable,"source_versions_current":executable,"action_specs_current":executable,"policy_change_pending":not executable,"escrow_funded":escrow["status"] in ("FUNDED","LOCKED"),"escrow_frozen":not executable,"completion_required":True,"settlement_allowed":False,"reason":"READY" if executable else "POLICY_OR_AUTHORIZATION_STALE"},sort_keys=True)
+        escrow=json.loads(raw); plan_raw=self.plans.get(escrow["plan_id"],""); plan=json.loads(plan_raw) if plan_raw else {}; hash_match=bool(plan_raw and plan.get("plan_hash")==escrow.get("plan_hash")); auth_match=bool(hash_match and self.current_plan_authorization_id(escrow["plan_id"])==escrow.get("authorization_id")); executable=bool(plan_raw and hash_match and auth_match and self.is_plan_executable(escrow["plan_id"]) and now()<=escrow["deadline"] and escrow["status"] in ("FUNDED","LOCKED"))
+        reason="READY" if executable else "ESCROW_EXPIRED" if now()>escrow["deadline"] else "PLAN_HASH_MISMATCH" if not hash_match else "AUTHORIZATION_ID_MISMATCH" if not auth_match else "POLICY_CHANGE_PENDING" if escrow["status"]=="FROZEN_POLICY_CHANGE" else "PLAN_NOT_EXECUTABLE"
+        return json.dumps({"plan_exists":bool(plan_raw),"plan_hash_match":hash_match,"authorization_exists":bool(self.plan_authorizations.get(escrow["plan_id"],"")),"authorization_identity_match":auth_match,"authorization_current":executable,"policy_versions_current":executable,"source_versions_current":executable,"action_specs_current":executable,"policy_change_pending":escrow["status"]=="FROZEN_POLICY_CHANGE","escrow_status":escrow["status"],"deadline_valid":now()<=escrow["deadline"],"escrow_funded":escrow["status"] in ("FUNDED","LOCKED"),"escrow_frozen":escrow["status"]=="FROZEN_POLICY_CHANGE","execution_allowed":executable,"completion_required":True,"settlement_allowed":False,"reason":reason},sort_keys=True)
     @gl.public.view
     def is_escrow_executable(self,eid:str)->bool:
         raw=self.escrows.get(str(eid),"")
         if not raw:return False
-        escrow=json.loads(raw); return escrow["status"] in ("FUNDED","LOCKED") and self.is_plan_executable(escrow["plan_id"])
+        escrow=json.loads(raw); return escrow["status"] in ("FUNDED","LOCKED") and now()<=escrow["deadline"] and self.escrow_binding_valid(eid) and self.is_plan_executable(escrow["plan_id"])
+
+    @gl.public.write
+    def resume_escrow_after_reassessment(self,eid:str)->str:
+        raw=self.escrows.get(str(eid),"")
+        if not raw: raise gl.vm.UserError("escrow not found")
+        escrow=json.loads(raw); self.owner({"creator":escrow["payer"]})
+        if escrow["status"]!="FROZEN_POLICY_CHANGE" or now()>escrow["deadline"] or not self.is_plan_executable(escrow["plan_id"]): raise gl.vm.UserError("reassessment required")
+        escrow["authorization_id"]=self.current_plan_authorization_id(escrow["plan_id"]); escrow["status"]=escrow.get("pre_freeze_status","FUNDED"); self.escrows[str(eid)]=json.dumps(escrow,sort_keys=True); self.escrow_histories[str(eid)].append(self.escrows[str(eid)]); return escrow["status"]
+
+    @gl.public.write
+    def expire_escrow(self,eid:str)->str:
+        raw=self.escrows.get(str(eid),"")
+        if not raw: raise gl.vm.UserError("escrow not found")
+        escrow=json.loads(raw)
+        if now()<=escrow["deadline"] or escrow["status"] in ("RELEASED","REFUNDED","EXPIRED"): raise gl.vm.UserError("escrow not expired")
+        escrow["status"]="EXPIRED"; self.escrows[str(eid)]=json.dumps(escrow,sort_keys=True); self.escrow_histories[str(eid)].append(self.escrows[str(eid)]); return "EXPIRED"
 
     @gl.public.write
     def submit_completion(self,eid:str,statement:str,evidence_urls:str,evidence_hashes:str)->str:
@@ -338,11 +371,15 @@ class TermsRail(gl.Contract):
         completion=json.loads(raw); eraw=self.escrows.get(completion["escrow_id"],""); escrow=json.loads(eraw) if eraw else {}
         if not eraw or escrow["status"]!="UNDER_REVIEW": raise gl.vm.UserError("completion not reviewable")
         verdict="EVIDENCE_INSUFFICIENT"
-        try:
-            result=gl.nondet.exec_prompt("Classify completion evidence. Return only one category: COMPLETED, PARTIALLY_COMPLETED, NOT_COMPLETED, EVIDENCE_INSUFFICIENT, EVIDENCE_CONFLICT.\n"+completion["statement"],response_format="json")
-            candidate=result.get("verdict","") if isinstance(result,dict) else ""
-            if candidate in ("COMPLETED","PARTIALLY_COMPLETED","NOT_COMPLETED","EVIDENCE_INSUFFICIENT","EVIDENCE_CONFLICT"): verdict=candidate
-        except Exception: pass
+        def leader_fn():
+            try:
+                result=gl.nondet.exec_prompt("Classify completion evidence. Return only one category: COMPLETED, PARTIALLY_COMPLETED, NOT_COMPLETED, EVIDENCE_INSUFFICIENT, EVIDENCE_CONFLICT.\n"+completion["statement"],response_format="json")
+                candidate=result.get("verdict","") if isinstance(result,dict) else ""
+                return {"verdict":candidate if candidate in ("COMPLETED","PARTIALLY_COMPLETED","NOT_COMPLETED","EVIDENCE_INSUFFICIENT","EVIDENCE_CONFLICT") else "EVIDENCE_INSUFFICIENT"}
+            except Exception: return {"verdict":"EVIDENCE_INSUFFICIENT"}
+        def validator_fn(result): return isinstance(result,gl.vm.Return) and isinstance(result.calldata,dict) and result.calldata.get("verdict") in ("COMPLETED","PARTIALLY_COMPLETED","NOT_COMPLETED","EVIDENCE_INSUFFICIENT","EVIDENCE_CONFLICT")
+        consensus=gl.vm.run_nondet_unsafe(leader_fn,validator_fn)
+        if isinstance(consensus,dict): verdict=consensus.get("verdict",verdict)
         aid=str(self.next_completion_id); self.next_completion_id+=1; record={"adjudication_id":aid,"completion_id":str(cid),"escrow_id":completion["escrow_id"],"verdict":verdict,"evidence_state":"SUFFICIENT" if verdict in ("COMPLETED","NOT_COMPLETED") else "PARTIAL","timestamp":now()}; self.adjudications[aid]=json.dumps(record,sort_keys=True); hist=self.adjudication_histories.get(str(cid));
         if not hist:self.adjudication_histories[str(cid)]=[]
         self.adjudication_histories[str(cid)].append(self.adjudications[aid]); completion["status"]="ADJUDICATED"; self.completions[str(cid)]=json.dumps(completion,sort_keys=True); return aid
@@ -437,7 +474,7 @@ class TermsRail(gl.Contract):
                 if not eraw: continue
                 escrow=json.loads(eraw); linked=json.loads(self.plans.get(escrow["plan_id"],"{}"))
                 if any(step["service_id"]==str(sid) for step in linked.get("steps",[])) and escrow["status"] in ("FUNDED","LOCKED"):
-                    escrow["status"]="FROZEN_POLICY_CHANGE"; ee=json.dumps(escrow,sort_keys=True); self.escrows[eid]=ee; self.escrow_histories[eid].append(ee)
+                    escrow["pre_freeze_status"]=escrow["status"]; escrow["status"]="FROZEN_POLICY_CHANGE"; ee=json.dumps(escrow,sort_keys=True); self.escrows[eid]=ee; self.escrow_histories[eid].append(ee)
         return result["change_state"]
 
     @gl.public.write

@@ -208,3 +208,9 @@ def test_agent_plan_rejects_invalid_references_and_blocked_verdict(direct_deploy
     with direct_vm.expect_revert("action does not belong to service"): c.create_plan("bad","bad",json.dumps([{"service_id":sid2,"action_id":aid}]))
     c.authorize_action(aid); pid=c.create_plan("blocked","blocked",json.dumps([{"service_id":sid,"action_id":aid}]))
     assert json.loads(c.authorize_plan(pid))["status"]=="VALID"
+
+def test_plan_required_field_must_be_boolean(direct_deploy, direct_vm):
+    response={d:"NOT_ADDRESSED" for d in DIMENSIONS}; direct_vm.mock_web(r"required",{"status":200,"body":"terms"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response))
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("required","Required","required.example.com","https://required.example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); aid=c.register_action(sid,"a","OTHER","step",fields())
+    for value in ("false",0,1,None):
+        with direct_vm.expect_revert("required must be boolean"): c.create_plan("bad","bad",json.dumps([{"service_id":sid,"action_id":aid,"required":value}]))
