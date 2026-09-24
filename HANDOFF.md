@@ -26,6 +26,9 @@
 - Escrow: plan-bound logical state machine with funding/locking labels, policy-change freeze, completion evidence, normalized adjudication, guarded release/refund and dispute evidence/adjudication/resolution. It does not custody or transfer GEN.
 - Frontend routes: `/plans`, `/plans/new`, `/plans/[id]`, `/escrow`, `/escrow/new`, `/escrow/[id]`, `/receipts`, `/receipts/[id]`, `/activity`.
 - v2 deployment: NOT YET DEPLOYED. The accepted v1 contract remains the production deployment until v2 exact-head CI and live lifecycle proof are complete.
+- Latest v2 predeployment source SHA-256: `FF50D595657ADC0B3DE06FD2F86C72ED11B9F8CC5BB293A131ADEBBB1401F86B`
+- Latest v2 hosted CI: run `36068175999` passed on the exact predeployment checkpoint before this documentation-only commit.
+- Deployment blocker: this environment has no GenLayer deployment CLI, funded signer, or deployment credentials; no v2 address or deployment transaction is claimed.
 
 ## Frontend safeguards
 
