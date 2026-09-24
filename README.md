@@ -7,7 +7,7 @@ TermsRail is a Next.js dApp and GenLayer Intelligent Contract for consensus-back
 
 ## v2 policy-gated commerce
 
-Agent Plans bind bounded multi-step actions to a plan hash, policy/source versions and append-only authorization receipts. Escrow records bind payer, recipient and amount to an executable plan; unsafe policy changes stale authorizations and freeze funded escrows before settlement. Completion evidence is bounded and adjudicated into normalized verdicts before guarded release/refund or dispute handling. The v2 UI exposes Plans, Escrow, Receipts and Activity routes while preserving canonical reads and finalized transaction verification.
+Agent Plans bind bounded multi-step actions to a plan hash, policy/source versions and append-only authorization receipts. Escrow records bind payer, recipient and amount to an executable plan; unsafe policy changes stale authorizations and freeze funded escrows before settlement. Completion evidence is bounded and adjudicated into normalized verdicts before guarded release/refund or dispute handling. Escrow is currently a logical, policy-gated state machine and does not custody or transfer GEN. The v2 UI exposes Plans, Escrow, Receipts and Activity routes while preserving canonical reads and finalized transaction verification.
 
 ## Run
 

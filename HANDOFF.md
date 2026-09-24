@@ -23,7 +23,7 @@
 
 - Current frontend/contract checkpoint: inspect `git log -1` (HEAD is intentionally not embedded here).
 - Agent Plans: bounded multi-step creation, policy-bound authorization, stale invalidation, reassessment and receipts implemented.
-- Escrow: plan-bound creation, funding/locking, policy-change freeze, completion evidence, normalized adjudication, guarded release/refund and dispute opening implemented.
+- Escrow: plan-bound logical state machine with funding/locking labels, policy-change freeze, completion evidence, normalized adjudication, guarded release/refund and dispute evidence/adjudication/resolution. It does not custody or transfer GEN.
 - Frontend routes: `/plans`, `/plans/new`, `/plans/[id]`, `/escrow`, `/escrow/new`, `/escrow/[id]`, `/receipts`, `/receipts/[id]`, `/activity`.
 - v2 deployment: NOT YET DEPLOYED. The accepted v1 contract remains the production deployment until v2 exact-head CI and live lifecycle proof are complete.
 

@@ -472,6 +472,13 @@ class TermsRail(gl.Contract):
     def get_adjudication(self,aid:str)->str:return self.adjudications.get(str(aid),"")
     @gl.public.view
     def get_dispute(self,did:str)->str:return self.disputes.get(str(did),"")
+    @gl.public.view
+    def get_disputes(self,eid:str,offset:u256=0,limit:u256=20)->list[str]:
+        matches=[]
+        for did in self.dispute_ids:
+            raw=self.disputes.get(did,"")
+            if raw and json.loads(raw).get("escrow_id")==str(eid): matches.append(raw)
+        return self.page(matches,int(offset),int(limit))
 
     def change_consensus(self,value,snapshot):
         def leader_fn():
