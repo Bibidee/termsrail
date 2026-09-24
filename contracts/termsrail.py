@@ -425,6 +425,13 @@ class TermsRail(gl.Contract):
     @gl.public.view
     def get_completion(self,cid:str)->str:return self.completions.get(str(cid),"")
     @gl.public.view
+    def get_completions(self,eid:str,offset:u256=0,limit:u256=20)->list[str]:
+        matches=[]
+        for cid in self.completion_ids:
+            raw=self.completions.get(cid,"")
+            if raw and json.loads(raw).get("escrow_id")==str(eid): matches.append(raw)
+        return self.page(matches,int(offset),int(limit))
+    @gl.public.view
     def get_adjudication(self,aid:str)->str:return self.adjudications.get(str(aid),"")
     @gl.public.view
     def get_dispute(self,did:str)->str:return self.disputes.get(str(did),"")
