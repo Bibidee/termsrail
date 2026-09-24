@@ -64,6 +64,7 @@ class TermsRail(gl.Contract):
     escrows: TreeMap[str,str]; escrow_ids: DynArray[str]; escrow_histories: TreeMap[str,DynArray[str]]; next_escrow_id: u256
     completions: TreeMap[str,str]; completion_ids: DynArray[str]; adjudications: TreeMap[str,str]; adjudication_histories: TreeMap[str,DynArray[str]]; next_completion_id: u256
     disputes: TreeMap[str,str]; dispute_ids: DynArray[str]; dispute_histories: TreeMap[str,DynArray[str]]; next_dispute_id: u256
+    dispute_evidence: TreeMap[str,str]
     receipts: TreeMap[str,str]; receipt_ids: DynArray[str]; plan_receipt_histories: TreeMap[str,DynArray[str]]
 
     def __init__(self): pass
@@ -335,7 +336,7 @@ class TermsRail(gl.Contract):
     def is_escrow_executable(self,eid:str)->bool:
         raw=self.escrows.get(str(eid),"")
         if not raw:return False
-        escrow=json.loads(raw); return escrow["status"] in ("FUNDED","LOCKED") and now()<=escrow["deadline"] and self.escrow_binding_valid(eid) and self.is_plan_executable(escrow["plan_id"])
+        escrow=json.loads(raw); return escrow["status"] in ("FUNDED","LOCKED","UNDER_REVIEW") and now()<=escrow["deadline"] and self.escrow_binding_valid(eid) and self.is_plan_executable(escrow["plan_id"])
 
     @gl.public.write
     def resume_escrow_after_reassessment(self,eid:str)->str:
@@ -422,6 +423,42 @@ class TermsRail(gl.Contract):
         if str(gl.message.sender_address) not in (escrow["payer"],escrow["recipient"]): raise gl.vm.UserError("permission denied")
         if escrow["status"] not in ("UNDER_REVIEW","LOCKED","FUNDED"): raise gl.vm.UserError("invalid dispute state")
         did=str(self.next_dispute_id); self.next_dispute_id+=1; record={"dispute_id":did,"escrow_id":str(eid),"opener":str(gl.message.sender_address),"statement":clean(statement,2000),"status":"OPEN","created_at":now()}; self.disputes[did]=json.dumps(record,sort_keys=True); self.dispute_ids.append(did); self.dispute_histories[did]=[self.disputes[did]]; escrow["status"]="DISPUTED"; self.escrows[str(eid)]=json.dumps(escrow,sort_keys=True); self.escrow_histories[str(eid)].append(self.escrows[str(eid)]); return did
+    @gl.public.write
+    def submit_dispute_evidence(self,did:str,statement:str,evidence_urls:str,evidence_hashes:str)->str:
+        raw=self.disputes.get(str(did),"")
+        if not raw: raise gl.vm.UserError("dispute not found")
+        dispute=json.loads(raw); escrow=json.loads(self.escrows.get(dispute["escrow_id"],"{}"));
+        if str(gl.message.sender_address) not in (escrow.get("payer"),escrow.get("recipient")): raise gl.vm.UserError("permission denied")
+        if dispute["status"] not in ("OPEN","EVIDENCE"): raise gl.vm.UserError("invalid dispute state")
+        urls,hashes=items(evidence_urls),items(evidence_hashes)
+        if len(urls)>8 or len(hashes)>8 or len(urls)!=len(hashes): raise gl.vm.UserError("invalid evidence bounds")
+        for url in urls: url_ok(url)
+        evidence={"statement":clean(statement,2000),"evidence_urls":urls,"evidence_hashes":hashes,"submitted_by":str(gl.message.sender_address),"submitted_at":now()}; self.dispute_evidence[str(did)]=json.dumps(evidence,sort_keys=True); dispute["status"]="EVIDENCE"; encoded=json.dumps(dispute,sort_keys=True); self.disputes[str(did)]=encoded; self.dispute_histories[str(did)].append(encoded); return "EVIDENCE"
+
+    @gl.public.write
+    def adjudicate_dispute(self,did:str)->str:
+        raw=self.disputes.get(str(did),"")
+        if not raw: raise gl.vm.UserError("dispute not found")
+        dispute=json.loads(raw); evidence=self.dispute_evidence.get(str(did),"")
+        if dispute["status"] not in ("OPEN","EVIDENCE"): raise gl.vm.UserError("dispute not reviewable")
+        def leader_fn():
+            try:
+                result=gl.nondet.exec_prompt("Classify this bounded dispute outcome. Return only RELEASE, REFUND, or OTHER.\n"+dispute["statement"]+"\n"+evidence,response_format="json")
+                verdict=result.get("verdict","") if isinstance(result,dict) else ""
+                return {"verdict":verdict if verdict in ("RELEASE","REFUND","OTHER") else "OTHER"}
+            except Exception:return {"verdict":"OTHER"}
+        def validator_fn(result):return isinstance(result,gl.vm.Return) and isinstance(result.calldata,dict) and result.calldata.get("verdict") in ("RELEASE","REFUND","OTHER")
+        result=gl.vm.run_nondet_unsafe(leader_fn,validator_fn); verdict=result.get("verdict","OTHER") if isinstance(result,dict) else "OTHER"; dispute.update({"status":"UNDER_REVIEW","adjudication_verdict":verdict,"adjudicated_at":now()}); encoded=json.dumps(dispute,sort_keys=True); self.disputes[str(did)]=encoded; self.dispute_histories[str(did)].append(encoded); return verdict
+
+    @gl.public.write
+    def resolve_dispute(self,did:str)->str:
+        raw=self.disputes.get(str(did),"")
+        if not raw: raise gl.vm.UserError("dispute not found")
+        dispute=json.loads(raw); escrow_raw=self.escrows.get(dispute["escrow_id"],""); escrow=json.loads(escrow_raw) if escrow_raw else {}
+        if str(gl.message.sender_address)!=escrow.get("payer"): raise gl.vm.UserError("permission denied")
+        if dispute.get("status")!="UNDER_REVIEW" or dispute.get("adjudication_verdict") not in ("RELEASE","REFUND"): raise gl.vm.UserError("dispute resolution unavailable")
+        if not self.escrow_binding_valid(dispute["escrow_id"]) or not self.is_plan_executable(escrow["plan_id"]): raise gl.vm.UserError("policy authorization required")
+        escrow["status"]="RELEASED" if dispute["adjudication_verdict"]=="RELEASE" else "REFUNDED"; self.escrows[dispute["escrow_id"]]=json.dumps(escrow,sort_keys=True); self.escrow_histories[dispute["escrow_id"]].append(self.escrows[dispute["escrow_id"]]); dispute["status"]="RESOLVED_RELEASE" if escrow["status"]=="RELEASED" else "RESOLVED_REFUND"; encoded=json.dumps(dispute,sort_keys=True); self.disputes[str(did)]=encoded; self.dispute_histories[str(did)].append(encoded); return dispute["status"]
     @gl.public.view
     def get_completion(self,cid:str)->str:return self.completions.get(str(cid),"")
     @gl.public.view
