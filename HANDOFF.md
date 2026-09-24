@@ -11,9 +11,9 @@
 
 ## Verification
 
-- Direct Mode: 20 passed in hosted CI
+- Direct Mode: 28 passed in hosted CI
 - GenVM lint: PASS
-- Frontend tests: 23 passed
+- Frontend tests: 26 passed
 - Typecheck: PASS
 - ESLint: 0 errors, 0 warnings
 - Production build: PASS
@@ -27,7 +27,7 @@
 - Frontend routes: `/plans`, `/plans/new`, `/plans/[id]`, `/escrow`, `/escrow/new`, `/escrow/[id]`, `/receipts`, `/receipts/[id]`, `/activity`.
 - v2 deployment: NOT YET DEPLOYED. The accepted v1 contract remains the production deployment until v2 exact-head CI and live lifecycle proof are complete.
 - Latest v2 predeployment source SHA-256: `FF50D595657ADC0B3DE06FD2F86C72ED11B9F8CC5BB293A131ADEBBB1401F86B`
-- Latest v2 hosted CI: run `36068175999` passed on the exact predeployment checkpoint before this documentation-only commit.
+- Latest v2 hosted CI: run `36068523511` passed on the exact predeployment checkpoint recorded by the current release.
 - Deployment blocker: this environment has no GenLayer deployment CLI, funded signer, or deployment credentials; no v2 address or deployment transaction is claimed.
 
 ## Frontend safeguards
