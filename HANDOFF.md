@@ -1,13 +1,19 @@
 # TermsRail Handoff
 
-## Production release
+## Production release (v2)
 
 - Frontend release commit: see `git log -1` (documentation intentionally avoids embedding a self-invalidating HEAD).
 - Frontend: https://termsrail.vercel.app
+- Contract: `0xcbC2eD344cb21dB2Dc0E7a4C22C67BF350F037dF`
+- Deployment transaction: `0xb8945e4a147f7ffe72114be0ba21838b9cd753c2f64a6b0915c58becb81d5f34`
+- Deployed contract source SHA-256: `FF50D595657ADC0B3DE06FD2F86C72ED11B9F8CC5BB293A131ADEBBB1401F86B`
+- Deployment receipt: FINALIZED, GenVM SUCCESS, consensus Accepted.
+
+## Accepted v1 deployment (untouched)
+
 - Contract: `0x1de664E55F92BAcda496afBCfFA1b9b0Cf0a8457`
 - Deployment transaction: `0x114b149bd8ad87e78304c71031493286b9d43501cae304eb05e0f31215c74768`
 - Deployed contract source SHA-256: `E0556E46FB667C52CF637B25C5792EB79207EEA375422EF5F3214592C9B6C9C7`
-- Deployment receipt: FINALIZED, GenVM SUCCESS, consensus Accepted.
 
 ## Verification
 
@@ -25,10 +31,9 @@
 - Agent Plans: bounded multi-step creation, policy-bound authorization, stale invalidation, reassessment and receipts implemented.
 - Escrow: plan-bound logical state machine with funding/locking labels, policy-change freeze, completion evidence, normalized adjudication, guarded release/refund and dispute evidence/adjudication/resolution. It does not custody or transfer GEN.
 - Frontend routes: `/plans`, `/plans/new`, `/plans/[id]`, `/escrow`, `/escrow/new`, `/escrow/[id]`, `/receipts`, `/receipts/[id]`, `/activity`.
-- v2 deployment: NOT YET DEPLOYED. The accepted v1 contract remains the production deployment until v2 exact-head CI and live lifecycle proof are complete.
-- Latest v2 predeployment source SHA-256: `FF50D595657ADC0B3DE06FD2F86C72ED11B9F8CC5BB293A131ADEBBB1401F86B`
-- Latest v2 hosted CI: the exact final main commit is green; use the GitHub Actions run attached to the commit for the run ID.
-- Deployment blocker: this environment has no GenLayer deployment CLI, funded signer, or deployment credentials; no v2 address or deployment transaction is claimed.
+- v2 deployment: FINALIZED on Studionet at the v2 address above; the v1 deployment remains untouched.
+- v2 source SHA-256: `FF50D595657ADC0B3DE06FD2F86C72ED11B9F8CC5BB293A131ADEBBB1401F86B`
+- Hosted CI: the exact final main commit is green; use the GitHub Actions run attached to the commit for the run ID.
 
 ## Frontend safeguards
 

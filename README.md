@@ -1,7 +1,7 @@
 # TERMSRAIL
 
 Live frontend: https://termsrail.vercel.app  
-Studionet contract: `0x1de664E55F92BAcda496afBCfFA1b9b0Cf0a8457` (chain 61999). Deployment transaction: `0x114b149bd8ad87e78304c71031493286b9d43501cae304eb05e0f31215c74768`.
+Studionet v2 contract: `0xcbC2eD344cb21dB2Dc0E7a4C22C67BF350F037dF` (chain 61999). Deployment transaction: `0xb8945e4a147f7ffe72114be0ba21838b9cd753c2f64a6b0915c58becb81d5f34`.
 
 TermsRail is a Next.js dApp and GenLayer Intelligent Contract for consensus-backed policy execution gates. Policy snapshot extraction and material policy-change detection use semantic consensus; structured action authorization is deterministic derivation over the accepted snapshot.
 
@@ -34,4 +34,4 @@ python -m pytest -q tests/test_contract_direct.py
 genvm-lint check contracts/termsrail.py
 ```
 
-The live CLI validation, schema retrieval, deployment and service writes were run on Studionet with the unlocked `faultline-dev` account. Snapshot consensus now uses independent semantic validation and fails closed when source evidence is unavailable; exact receipts are recorded in `HANDOFF.md`.
+The live CLI validation and v2 deployment were run on Studionet with the unlocked `fresh-bob` account. Snapshot consensus now uses independent semantic validation and fails closed when source evidence is unavailable; exact receipts are recorded in `HANDOFF.md`. The accepted v1 deployment remains documented there as the prior deployment and was not modified.
