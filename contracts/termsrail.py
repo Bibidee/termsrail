@@ -251,7 +251,7 @@ class TermsRail(gl.Contract):
         if not raw: raise gl.vm.UserError("plan not found")
         plan=json.loads(raw); self.owner(plan); verdicts=[]; bindings=[]; precedence={"POLICY_CONFLICT":5,"PROHIBITED":4,"UNKNOWN":3,"RESTRICTED":2,"CONDITIONAL":1,"ALLOWED":0}
         for step in plan["steps"]:
-            action=self.action_record(step["action_id"]); service=self.service(step["service_id"]); current=action["spec_hash"]; old=step["action_spec_hash"]; ar=self.authorizations.get(step["action_id"],""); auth=json.loads(ar) if ar else {}; valid=bool(ar and current==old and service["policy_status"]=="ACTIVE" and not service["unresolved_change"] and self.fresh(auth.get("valid_until",0)) and auth.get("policy_version")==service["policy_version"] and auth.get("source_version")==service["source_version"] and auth.get("spec_hash")==current and auth.get("verdict")=="ALLOWED"); verdict=auth.get("verdict","UNKNOWN") if valid else "UNKNOWN"; verdicts.append({"step_index":step["step_index"],"verdict":verdict,"required":step.get("required",True)}); bindings.append({"service_id":step["service_id"],"action_id":step["action_id"],"action_spec_hash":current,"policy_version":service["policy_version"],"source_version":service["source_version"]})
+            action=self.action_record(step["action_id"]); service=self.service(step["service_id"]); current=action["spec_hash"]; old=step["action_spec_hash"]; ar=self.authorizations.get(step["action_id"],""); auth=json.loads(ar) if ar else {}; valid=bool(ar and current==old and service["policy_status"]=="ACTIVE" and not service["unresolved_change"] and self.fresh(auth.get("valid_until",0)) and auth.get("policy_version")==service["policy_version"] and auth.get("source_version")==service["source_version"] and auth.get("spec_hash")==current and auth.get("verdict")=="ALLOWED"); verdict=auth.get("verdict","UNKNOWN") if valid else "UNKNOWN"; verdicts.append({"step_index":step["step_index"],"verdict":verdict,"required":step.get("required",True)}); bindings.append({"service_id":step["service_id"],"action_id":step["action_id"],"action_spec_hash":current,"action_authorization_id":digest(auth) if valid else "","policy_version":service["policy_version"],"source_version":service["source_version"]})
         overall=max((x["verdict"] for x in verdicts),key=lambda x:precedence.get(x,3)); result={"plan_id":str(pid),"creator":plan["creator"],"plan_hash":plan.get("plan_hash",""),"plan_version":plan.get("version",1),"step_verdicts":verdicts,"bindings":bindings,"overall_verdict":overall,"issued_at":now(),"expires_at":now()+86400,"status":"VALID" if overall=="ALLOWED" else "BLOCKED"}; encoded=json.dumps(result,sort_keys=True); self.plan_authorizations[str(pid)]=encoded; history=self.plan_authorization_histories.get(str(pid));
         if not history: self.plan_authorization_histories[str(pid)]=[]
         self.plan_authorization_histories[str(pid)].append(encoded)
@@ -285,7 +285,10 @@ class TermsRail(gl.Contract):
         for step,binding in zip(plan["steps"],auth.get("bindings",[])):
             current=self.action_record(step["action_id"])
             service=self.service(step["service_id"])
-            if current["spec_hash"]!=binding.get("action_spec_hash") or service["policy_version"]!=binding.get("policy_version") or service["source_version"]!=binding.get("source_version") or service["policy_status"]!="ACTIVE" or service["unresolved_change"] or not self.is_action_authorized(step["action_id"],service["policy_version"],current["spec_hash"]):return False
+            current_auth=self.authorizations.get(step["action_id"],"")
+            if not current_auth:return False
+            if current["spec_hash"]!=binding.get("action_spec_hash") or digest(json.loads(current_auth))!=binding.get("action_authorization_id"):return False
+            if service["policy_version"]!=binding.get("policy_version") or service["source_version"]!=binding.get("source_version") or service["policy_status"]!="ACTIVE" or service["unresolved_change"] or not self.is_action_authorized(step["action_id"],service["policy_version"],current["spec_hash"]):return False
         return True
 
     @gl.public.write
