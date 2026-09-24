@@ -11,7 +11,7 @@
 
 ## Verification
 
-- Direct Mode: 28 passed in hosted CI
+- Direct Mode: 29 passed in hosted CI
 - GenVM lint: PASS
 - Frontend tests: 26 passed
 - Typecheck: PASS
