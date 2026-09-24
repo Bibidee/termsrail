@@ -222,7 +222,25 @@ def test_escrow_binding_freeze_resume_and_receipt_history(direct_deploy, direct_
     direct_vm.clear_mocks(); direct_vm.mock_web(r"v2-lifecycle",{"status":200,"body":"allowed terms"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response)); c.rebuild_policy_snapshot(sid); c.reassess_action(aid); c.reassess_plan(pid); assert '"status": "FROZEN_POLICY_CHANGE"' in c.get_escrow(eid); assert c.resume_escrow_after_reassessment(eid)=="FUNDED"; assert c.is_escrow_executable(eid) is True
 
 def test_escrow_binding_mismatch_closes_execution_gate(direct_deploy, direct_vm):
-    response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"binding-mismatch",{"status":200,"body":"allowed terms"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response)); c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("binding-mismatch","Binding","binding-mismatch.example.com","https://binding-mismatch.example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); aid=c.register_action(sid,"binding-action","OTHER","work",fields()); c.authorize_action(aid); pid=c.create_plan("Binding","mismatch",json.dumps([{"service_id":sid,"action_id":aid}])); c.authorize_plan(pid); eid=c.create_escrow(pid,"0xrecipient",1,2**31); c.fund_escrow(eid); c.reassess_action(aid); c.authorize_plan(pid); state=json.loads(c.get_escrow_execution_state(eid)); assert state["authorization_identity_match"] is False; assert state["execution_allowed"] is False; with direct_vm.expect_revert("plan authorization stale or escrow expired"): c.lock_escrow(eid)
+    response={d:"ALLOWED" for d in DIMENSIONS}
+    direct_vm.mock_web(r"binding-mismatch",{"status":200,"body":"allowed terms"})
+    direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response))
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12")
+    sid=c.register_service("binding-mismatch","Binding","binding-mismatch.example.com","https://binding-mismatch.example.com/p","TERMS_OF_SERVICE",86400)
+    c.build_policy_snapshot(sid)
+    aid=c.register_action(sid,"binding-action","OTHER","work",fields())
+    c.authorize_action(aid)
+    pid=c.create_plan("Binding","mismatch",json.dumps([{"service_id":sid,"action_id":aid}]))
+    c.authorize_plan(pid)
+    eid=c.create_escrow(pid,"0xrecipient",1,2**31)
+    c.fund_escrow(eid)
+    c.reassess_action(aid)
+    c.authorize_plan(pid)
+    state=json.loads(c.get_escrow_execution_state(eid))
+    assert state["authorization_identity_match"] is False
+    assert state["execution_allowed"] is False
+    with direct_vm.expect_revert("plan authorization stale or escrow expired"):
+        c.lock_escrow(eid)
 
 def test_completion_adjudication_release_and_dispute_evidence(direct_deploy, direct_vm):
     response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"settlement",{"status":200,"body":"allowed terms"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response)); c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("settlement","Settlement","settlement.example.com","https://settlement.example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); aid=c.register_action(sid,"settle-action","OTHER","work",fields()); c.authorize_action(aid); pid=c.create_plan("Settlement","complete",json.dumps([{"service_id":sid,"action_id":aid}])); c.authorize_plan(pid); eid=c.create_escrow(pid,"0xrecipient",1,2**31); c.fund_escrow(eid); cid=c.submit_completion(eid,"deliverable complete","[]","[]"); assert '"completion_id": "'+cid+'"' in c.get_completion(cid); direct_vm.mock_llm(r"Classify completion evidence",json.dumps({"verdict":"COMPLETED"})); adid=c.adjudicate_completion(cid); assert '"verdict": "COMPLETED"' in c.get_adjudication(adid); assert c.release_escrow(eid)=="RELEASED"
