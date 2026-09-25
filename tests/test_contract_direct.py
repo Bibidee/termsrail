@@ -13,6 +13,7 @@ def fields(**overrides):
 
 def fund_escrow(contract, vm, escrow_id, amount=1):
     """Set the direct VM message value for a payable call, then clear it."""
+    vm.deal(vm._contract_address, amount)
     vm.value = amount
     try:
         return contract.fund_escrow(escrow_id)
