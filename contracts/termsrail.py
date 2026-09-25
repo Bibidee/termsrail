@@ -491,6 +491,30 @@ class TermsRail(gl.Contract):
             _Recipient(Address(escrow["payer"])).emit_transfer(value=u256(escrow["amount"]))
             escrow.update({"status":"REFUNDED","custody":"TRANSFER_QUEUED","settlement_status":"REFUND_TO_PAYER"})
         self.escrows[dispute["escrow_id"]]=json.dumps(escrow,sort_keys=True); self.escrow_histories[dispute["escrow_id"]].append(self.escrows[dispute["escrow_id"]]); dispute["status"]="RESOLVED_RELEASE" if escrow["status"]=="RELEASED" else "RESOLVED_REFUND"; encoded=json.dumps(dispute,sort_keys=True); self.disputes[str(did)]=encoded; self.dispute_histories[str(did)].append(encoded); return dispute["status"]
+
+    @gl.public.write
+    def resolve_dispute_choice(self,did:str,outcome:str)->str:
+        """Resolve an OTHER dispute only after an explicit payer choice.
+
+        Consensus may return OTHER when the evidence does not support a
+        bounded RELEASE/REFUND verdict.  The payer can then choose one of the
+        two bounded settlement outcomes; no arbitrary outcome is inferred.
+        """
+        raw=self.disputes.get(str(did),"")
+        if not raw: raise gl.vm.UserError("dispute not found")
+        dispute=json.loads(raw); escrow_raw=self.escrows.get(dispute["escrow_id"],""); escrow=json.loads(escrow_raw) if escrow_raw else {}
+        if str(gl.message.sender_address)!=escrow.get("payer"): raise gl.vm.UserError("permission denied")
+        if dispute.get("status")!="UNDER_REVIEW" or dispute.get("adjudication_verdict")!="OTHER": raise gl.vm.UserError("explicit dispute choice unavailable")
+        if outcome not in ("RELEASE","REFUND"): raise gl.vm.UserError("invalid dispute choice")
+        if not self.escrow_binding_valid(dispute["escrow_id"]) or not self.is_plan_executable(escrow["plan_id"]): raise gl.vm.UserError("policy authorization required")
+        if escrow.get("custody")!="HELD" or self.balance < u256(escrow["amount"]): raise gl.vm.UserError("escrow custody unavailable")
+        if outcome=="RELEASE":
+            _Recipient(Address(escrow["recipient"])).emit_transfer(value=u256(escrow["amount"]))
+            escrow.update({"status":"RELEASED","custody":"TRANSFER_QUEUED","settlement_status":"RELEASE_TO_RECIPIENT"})
+        else:
+            _Recipient(Address(escrow["payer"])).emit_transfer(value=u256(escrow["amount"]))
+            escrow.update({"status":"REFUNDED","custody":"TRANSFER_QUEUED","settlement_status":"REFUND_TO_PAYER"})
+        self.escrows[dispute["escrow_id"]]=json.dumps(escrow,sort_keys=True); self.escrow_histories[dispute["escrow_id"]].append(self.escrows[dispute["escrow_id"]]); dispute["resolution_choice"]=outcome; dispute["status"]="RESOLVED_RELEASE" if outcome=="RELEASE" else "RESOLVED_REFUND"; encoded=json.dumps(dispute,sort_keys=True); self.disputes[str(did)]=encoded; self.dispute_histories[str(did)].append(encoded); return dispute["status"]
     @gl.public.view
     def get_completion(self,cid:str)->str:return self.completions.get(str(cid),"")
     @gl.public.view

@@ -1,7 +1,7 @@
 # TERMSRAIL
 
 Live frontend: https://termsrail.vercel.app  
-Studionet v3 contract: `0xd689F01a5A68B1B5320757F49139EeB13f9BAB2e` (chain 61999). Deployment transaction: `0xc5d52299c76135040aab739acae0eea6b5e58aac74656ad9f5518177847ae683`.
+Studionet v3 custody contract: `0x1Bdd534a9db2519F130462ea8666B25cB5764C4b` (chain 61999). Deployment transaction: `0x7707579237eb0befcc020d859be045c71c5a9af68fa24cccdfe8b13242bf6929`.
 
 TermsRail is a Next.js dApp and GenLayer Intelligent Contract for consensus-backed policy execution gates. Policy snapshot extraction and material policy-change detection use semantic consensus; structured action authorization is deterministic derivation over the accepted snapshot.
 
@@ -21,6 +21,8 @@ The frontend targets Studionet (chain `61999`, RPC `https://studio.genlayer.com/
 ## Contract
 
 `contracts/termsrail.py` contains service/source registration, URL hardening, per-source/per-dimension evidence states, append-only histories, bounded observations from `gl.nondet.web.render`, deterministic verdict precedence, change invalidation, TTL checks and the fail-closed `is_action_authorized` gate. Losing an explicit `ALLOWED` dimension—including a transition to `NOT_ADDRESSED` or `UNKNOWN`—is material: it invalidates the current snapshot and prior authorizations until a new snapshot is built and the action is reassessed.
+
+Dispute consensus is bounded to `RELEASE`, `REFUND`, or `OTHER`. An `OTHER` verdict never moves funds automatically; the payer must explicitly choose one of the two bounded outcomes with `resolve_dispute_choice`.
 
 ## Verification
 

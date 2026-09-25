@@ -4,9 +4,9 @@
 
 - Frontend release commit: see `git log -1` (documentation intentionally avoids embedding a self-invalidating HEAD).
 - Frontend: https://termsrail.vercel.app
-- Contract: `0xd689F01a5A68B1B5320757F49139EeB13f9BAB2e`
-- Deployment transaction: `0xc5d52299c76135040aab739acae0eea6b5e58aac74656ad9f5518177847ae683`
-- Deployed contract source SHA-256: `83DB21CF94384B809CC28B0847F7346F3ABBC780693688DC3A85545B70F95D11`
+- Contract: `0x1Bdd534a9db2519F130462ea8666B25cB5764C4b`
+- Deployment transaction: `0x7707579237eb0befcc020d859be045c71c5a9af68fa24cccdfe8b13242bf6929`
+- Deployed contract source SHA-256: `AFAAC5B2ED46F080C28858CC324A3B0E0B1949BF50D1E599B5A8FBB58BF22E85`
 - Deployment receipt: FINALIZED, GenVM SUCCESS, consensus Accepted.
 
 ## Accepted v1 deployment (untouched)
@@ -23,6 +23,7 @@
 - Typecheck: PASS
 - ESLint: 0 errors, 0 warnings
 - Production build: PASS
+- Custody recovery: `resolve_dispute_choice(did, RELEASE|REFUND)` provides an explicit bounded resolution when dispute consensus returns `OTHER`.
 - Exact-head CI: PASS (see GitHub Actions history for the release commit)
 
 ## v3 custody checkpoint
