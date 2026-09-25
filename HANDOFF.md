@@ -1,12 +1,12 @@
 # TermsRail Handoff
 
-## Production release (v2)
+## Production release (v3 custody-enabled)
 
 - Frontend release commit: see `git log -1` (documentation intentionally avoids embedding a self-invalidating HEAD).
 - Frontend: https://termsrail.vercel.app
-- Contract: `0xcbC2eD344cb21dB2Dc0E7a4C22C67BF350F037dF`
-- Deployment transaction: `0xb8945e4a147f7ffe72114be0ba21838b9cd753c2f64a6b0915c58becb81d5f34`
-- Deployed contract source SHA-256: `FF50D595657ADC0B3DE06FD2F86C72ED11B9F8CC5BB293A131ADEBBB1401F86B`
+- Contract: `0xd689F01a5A68B1B5320757F49139EeB13f9BAB2e`
+- Deployment transaction: `0xc5d52299c76135040aab739acae0eea6b5e58aac74656ad9f5518177847ae683`
+- Deployed contract source SHA-256: `83DB21CF94384B809CC28B0847F7346F3ABBC780693688DC3A85545B70F95D11`
 - Deployment receipt: FINALIZED, GenVM SUCCESS, consensus Accepted.
 
 ## Accepted v1 deployment (untouched)
@@ -25,14 +25,14 @@
 - Production build: PASS
 - Exact-head CI: PASS (see GitHub Actions history for the release commit)
 
-## v2 checkpoint
+## v3 custody checkpoint
 
 - Current frontend/contract checkpoint: inspect `git log -1` (HEAD is intentionally not embedded here).
 - Agent Plans: bounded multi-step creation, policy-bound authorization, stale invalidation, reassessment and receipts implemented.
-- Escrow: plan-bound logical state machine with funding/locking labels, policy-change freeze, completion evidence, normalized adjudication, guarded release/refund and dispute evidence/adjudication/resolution. It does not custody or transfer GEN.
+- Escrow: plan-bound state machine with payable GEN funding. `fund_escrow` requires `gl.message.value` to equal the declared amount and records custody as `HELD`. Guarded release/refund and dispute resolution emit finalized external transfers to the recipient or payer, then record `TRANSFER_QUEUED` settlement state. Studio balance reads are simulated; Studionet uses the Intelligent Contract ghost balance.
 - Frontend routes: `/plans`, `/plans/new`, `/plans/[id]`, `/escrow`, `/escrow/new`, `/escrow/[id]`, `/receipts`, `/receipts/[id]`, `/activity`.
-- v2 deployment: FINALIZED on Studionet at the v2 address above; the v1 deployment remains untouched.
-- v2 source SHA-256: `FF50D595657ADC0B3DE06FD2F86C72ED11B9F8CC5BB293A131ADEBBB1401F86B`
+- v3 deployment: FINALIZED on Studionet at the custody-enabled address above; v1 and the prior logical v2 deployment remain untouched.
+- v3 source SHA-256: `83DB21CF94384B809CC28B0847F7346F3ABBC780693688DC3A85545B70F95D11`.
 - Hosted CI: the exact final main commit is green; use the GitHub Actions run attached to the commit for the run ID.
 
 ## Frontend safeguards

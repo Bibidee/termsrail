@@ -3,7 +3,8 @@ import { studionet } from 'genlayer-js/chains';
 import { ExecutionResult, executionResultNumberToName } from 'genlayer-js/types';
 
 export const STUDIONET_CHAIN_ID = 61999;
-export const FROZEN_TERMSRAIL_CONTRACT = '0xcbC2eD344cb21dB2Dc0E7a4C22C67BF350F037dF' as const;
+export const FROZEN_TERMSRAIL_CONTRACT = '0xd689F01a5A68B1B5320757F49139EeB13f9BAB2e' as const;
+export const ACCEPTED_V2_LOGICAL_CONTRACT = '0xcbC2eD344cb21dB2Dc0E7a4C22C67BF350F037dF' as const;
 export const ACCEPTED_V1_CONTRACT = '0x1de664E55F92BAcda496afBCfFA1b9b0Cf0a8457' as const;
 const ADDRESS_PATTERN=/^0x[0-9a-fA-F]{40}$/;
 export function resolveContractAddress(value:string|undefined): `0x${string}` { const candidate=(value??'').trim(); return (ADDRESS_PATTERN.test(candidate)?candidate:FROZEN_TERMSRAIL_CONTRACT) as `0x${string}`; }
@@ -45,10 +46,10 @@ export function clientFor(address: `0x${string}`, provider: Eip1193) { return cr
 export type TransactionPhase='SUBMITTING'|'SUBMITTED'|'WAITING_FOR_FINALIZATION'|'FINALIZED'|'VERIFYING_EXECUTION'|'SYNCING_CANONICAL_STATE'|'CANONICAL_STATE_FOUND'|'SUCCESS'|'RPC_RETRYING'|'VERIFICATION_DELAYED';
 export type LifecycleEvent={phase:TransactionPhase;hash?:string;attempt?:number;canonicalState?:unknown};
 export async function waitForCanonicalState<T>({read,predicate,onRetry,maxDurationMs=300000}:{read:()=>Promise<T>;predicate:(value:T)=>boolean;onRetry?:(attempt:number)=>void;maxDurationMs?:number}):Promise<T>{const started=Date.now();let attempt=0;let last:T|undefined;while(Date.now()-started<maxDurationMs){try{last=await read();if(predicate(last))return last;}catch(error){if(Date.now()-started>=maxDurationMs)throw error;}attempt++;onRetry?.(attempt);const delay=attempt<10?1000:attempt<20?2000:4000;await new Promise(resolve=>setTimeout(resolve,delay));}if(last!==undefined)throw new Error('Canonical state synchronization is still in progress.');throw new Error('Canonical state synchronization timed out.');}
-export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[], readback: () => Promise<T>, expected: (value: T) => boolean, onPhase?: (event:LifecycleEvent)=>void, onCanonical?: (state:T)=>void) {
+export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[], readback: () => Promise<T>, expected: (value: T) => boolean, onPhase?: (event:LifecycleEvent)=>void, onCanonical?: (state:T)=>void, value: bigint = 0n) {
   const client = clientFor(address, provider);
   onPhase?.({phase:'SUBMITTING'});
-  const hash = await client.writeContract({ address: requireContract(), functionName, args: args as never[], value: 0n });
+  const hash = await client.writeContract({ address: requireContract(), functionName, args: args as never[], value });
   onPhase?.({phase:'SUBMITTED',hash});
   onPhase?.({phase:'WAITING_FOR_FINALIZATION',hash});
   const receipt = await waitForFinalizedReceipt(client,hash);
@@ -66,3 +67,5 @@ export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193,
   return { hash, receipt, state: state.value };
 }
 export async function readContract<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[] = []) { return clientFor(address, provider).readContract({ address: requireContract(), functionName, args: args as never[] }) as Promise<T>; }
+export function genToWei(value: string): bigint { const normalized=value.trim(); if(!/^\d+(?:\.\d{1,18})?$/.test(normalized)) throw new Error('Enter a valid GEN amount.'); const [whole,fraction='']=normalized.split('.'); return BigInt(whole)*10n**18n+BigInt((fraction+'0'.repeat(18)).slice(0,18)); }
+export function weiToGen(value: unknown): string { try { const amount=BigInt(String(value??0)); const whole=amount/10n**18n; const fraction=(amount%10n**18n).toString().padStart(18,'0').replace(/0+$/,''); return fraction?`${whole}.${fraction}`:String(whole); } catch { return '0'; } }

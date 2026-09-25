@@ -1,13 +1,13 @@
 # TERMSRAIL
 
 Live frontend: https://termsrail.vercel.app  
-Studionet v2 contract: `0xcbC2eD344cb21dB2Dc0E7a4C22C67BF350F037dF` (chain 61999). Deployment transaction: `0xb8945e4a147f7ffe72114be0ba21838b9cd753c2f64a6b0915c58becb81d5f34`.
+Studionet v3 contract: `0xd689F01a5A68B1B5320757F49139EeB13f9BAB2e` (chain 61999). Deployment transaction: `0xc5d52299c76135040aab739acae0eea6b5e58aac74656ad9f5518177847ae683`.
 
 TermsRail is a Next.js dApp and GenLayer Intelligent Contract for consensus-backed policy execution gates. Policy snapshot extraction and material policy-change detection use semantic consensus; structured action authorization is deterministic derivation over the accepted snapshot.
 
-## v2 policy-gated commerce
+## v3 policy-gated commerce with GEN custody
 
-Agent Plans bind bounded multi-step actions to a plan hash, policy/source versions and append-only authorization receipts. Escrow records bind payer, recipient and amount to an executable plan; unsafe policy changes stale authorizations and freeze funded escrows before settlement. Completion evidence is bounded and adjudicated into normalized verdicts before guarded release/refund or dispute handling. Escrow is currently a logical, policy-gated state machine and does not custody or transfer GEN. The v2 UI exposes canonical Plans, Escrow, Receipts and Activity routes, including completion/dispute evidence controls, while preserving finalized transaction verification.
+Agent Plans bind bounded multi-step actions to a plan hash, policy/source versions and append-only authorization receipts. Escrow records bind payer, recipient and amount to an executable plan; unsafe policy changes stale authorizations and freeze funded escrows before settlement. Funding is a payable GEN deposit equal to the declared amount. Completion evidence is bounded and adjudicated into normalized verdicts before guarded release/refund or dispute handling; release/refund emit finalized external GEN transfers and mark the canonical transfer as queued. The v3 UI exposes canonical Plans, Escrow, Receipts and Activity routes, including custody balance, funding, completion/dispute evidence and settlement controls, while preserving finalized transaction verification.
 
 ## Run
 
