@@ -17,7 +17,7 @@
 
 ## Verification
 
-- Direct Mode: 29 passed in hosted CI
+- Direct Mode: 30 passed in hosted CI
 - GenVM lint: PASS
 - Frontend tests: 26 passed
 - Typecheck: PASS
@@ -33,7 +33,7 @@
 - Escrow: plan-bound state machine with payable GEN funding. `fund_escrow` requires `gl.message.value` to equal the declared amount and records custody as `HELD`. Guarded release/refund and dispute resolution emit finalized external transfers to the recipient or payer, then record `TRANSFER_QUEUED` settlement state. Studio balance reads are simulated; Studionet uses the Intelligent Contract ghost balance.
 - Frontend routes: `/plans`, `/plans/new`, `/plans/[id]`, `/escrow`, `/escrow/new`, `/escrow/[id]`, `/receipts`, `/receipts/[id]`, `/activity`.
 - v3 deployment: FINALIZED on Studionet at the custody-enabled address above; v1 and the prior logical v2 deployment remain untouched.
-- v3 source SHA-256: `83DB21CF94384B809CC28B0847F7346F3ABBC780693688DC3A85545B70F95D11`.
+- v3 source SHA-256: `AFAAC5B2ED46F080C28858CC324A3B0E0B1949BF50D1E599B5A8FBB58BF22E85`.
 - Hosted CI: the exact final main commit is green; use the GitHub Actions run attached to the commit for the run ID.
 
 ## Frontend safeguards
