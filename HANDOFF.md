@@ -9,16 +9,16 @@
 - Deployed contract source SHA-256: `AFAAC5B2ED46F080C28858CC324A3B0E0B1949BF50D1E599B5A8FBB58BF22E85`
 - Deployment receipt: FINALIZED, GenVM SUCCESS, consensus Accepted.
 
-## Reviewed escrow-fix deployment (production)
+## Current correction deployment (production)
 
 - Network: Studionet, chain 61999
-- Contract: `0x561016E2bA38513ee3e4CCb39aAad454fDE30Ffd`
-- Deployment transaction: `0x0717b3f11046711e699ab2cf4dae5c1149dcde7122e24f1f0ff5626e6856e0dd`
+- Contract: `0x3D03382e2BEc45c34a67b00A82329F576A32B826`
+- Deployment transaction: `0x2c0273bad0b54c9340eee702fd8cddce65178df39fdf4e255d3c7f022a00106f`
 - Deployer: `0x2cd419603eBa593074653930Ddc4073d4FD8fc60` (`fresh-bob`)
 - Receipt: FINALIZED, GenVM SUCCESS, consensus `MAJORITY_AGREE`
-- Source SHA-256: `86C335677C486B24D4F9BF80D54D287AC51A3742B0C729EBDC19379DADAD5812`
+- Source SHA-256: `0DB6BAB48A493AD0B74630191185DC08C0EC6330C791C215DA41773EBCD7CC85`
 - Production frontend: `https://termsrail.vercel.app` (latest Vercel deployment `dpl_2uzgEHou9oJCoFn4njDZyqU5qrZ5`, Ready; deployment URL `https://termsrail-3q8lmcud8-bibidees-projects.vercel.app`). This release explicitly explains that the copied demo service is `NEEDS_SNAPSHOT` and links users to register a service with a real public source. Production `NEXT_PUBLIC_CONTRACT_ADDRESS` points to this contract; the production bundle was verified to contain the new address.
-- Migration: old contract retained unchanged. The service at old ID `0` was re-registered at new ID `0` (tx `0x231a7193dc773e5badfe07dc70e5756ba7788cae345c02550b46b558e078a78f`). Actions, plans, receipts, escrows, and custody were not migrated; the new escrow list and custody balance are both zero.
+- Migration: previous contracts retained unchanged. No service, action, plan, receipt, escrow or custody records were migrated; the new registry starts empty.
 - Snapshot tx `0xd7f9fba92a02b4c6ab980acb4fac59ab60c4c6559226a890fdc29a1d29466464` ended `UNDETERMINED` after four rounds. The copied demo service therefore remains `NEEDS_SNAPSHOT` (policy version 0); do not treat it as an active authorization basis. Retry only with valid source evidence and accepted consensus.
 - Production build and aliasing succeeded after `.vercelignore` excluded local test/cache artifacts. Read-only verification returned HTTP 200 for the production home and `/escrow`, and `/api/version` reported production environment. The live escrow page now explains the creation/funding prerequisites and the missing accepted snapshot.
 
@@ -46,8 +46,8 @@
 - Dispute evidence is append-only and records `submission_id`, wallet, deterministic party role, statement, references and timestamp. Payer and recipient evidence are both included in adjudication.
 - Each escrow now carries one canonical settlement outcome for its current cycle. Historical verdicts cannot authorize opposing destinations. A finalized RELEASE always transfers to the recipient; a finalized REFUND always transfers to the payer; either relevant party may trigger an already-authorized outcome, and a second settlement is rejected.
 - Optional plan steps remain in receipts but do not block a plan; required steps continue to gate it. Policy change, plan hash, source/policy version and authorization identity checks remain mandatory.
-- Local correction validation: 34 Direct Mode tests pass with a Windows stdin-unlink workaround; frontend tests and static lint are run separately. The corrected contract has not been redeployed from this worktree, so no live correction-round result is claimed.
-- Local corrected contract source SHA-256: `0DB6BAB48A493AD0B74630191185DC08C0EC6330C791C215DA41773EBCD7CC85` (not the deployed SHA; deployment remains pending final review/CI).
+- Local correction validation: 34 Direct Mode tests pass; frontend tests, typecheck, ESLint and build pass. Hosted CI run `36336873248` passed on the exact release HEAD.
+- Corrected contract source SHA-256: `0DB6BAB48A493AD0B74630191185DC08C0EC6330C791C215DA41773EBCD7CC85`, matching the current deployment.
 
 ## v3 custody checkpoint
 

@@ -1,7 +1,7 @@
 # TERMSRAIL
 
 Live frontend: https://termsrail.vercel.app  
-Latest reviewed contract: `0x561016E2bA38513ee3e4CCb39aAad454fDE30Ffd` (Studionet, chain 61999). Deployment transaction: `0x0717b3f11046711e699ab2cf4dae5c1149dcde7122e24f1f0ff5626e6856e0dd`. The service registry entry was copied from the previous v3 contract (`0x1Bdd534a9db2519F130462ea8666B25cB5764C4b`), but actions, plans, receipts, escrows, and custody were not migrated. The copied demo service is `NEEDS_SNAPSHOT`: its snapshot attempt ended `UNDETERMINED`, so authorization remains fail-closed until a valid snapshot is built.
+Latest reviewed contract: `0x3D03382e2BEc45c34a67b00A82329F576A32B826` (Studionet, chain 61999). Deployment transaction: `0x2c0273bad0b54c9340eee702fd8cddce65178df39fdf4e255d3c7f022a00106f`. Source SHA-256: `0DB6BAB48A493AD0B74630191185DC08C0EC6330C791C215DA41773EBCD7CC85`. This is a fresh deployment; prior service, action, plan, receipt, escrow and custody records were not migrated.
 
 TermsRail is a Next.js dApp and GenLayer Intelligent Contract for consensus-backed policy execution gates. Policy snapshot extraction and material policy-change detection use semantic consensus; structured action authorization is deterministic derivation over the accepted snapshot.
 
@@ -44,4 +44,4 @@ python -m pytest -q tests/test_contract_direct.py
 genvm-lint check contracts/termsrail.py
 ```
 
-The reviewed contract and production frontend cutover were completed on Studionet/Vercel; exact receipts, migration limits, and current status are recorded in `HANDOFF.md`. Snapshot consensus uses independent semantic validation and fails closed when source evidence is unavailable. The previous production contract remains deployed and was not modified.
+The reviewed contract and production frontend cutover are deployed on Studionet/Vercel; exact receipts and current status are recorded in `HANDOFF.md`. Snapshot consensus uses independent semantic validation and fails closed when source evidence is unavailable. Earlier contracts remain deployed and untouched.
