@@ -3,7 +3,8 @@ import { studionet } from 'genlayer-js/chains';
 import { ExecutionResult, executionResultNumberToName } from 'genlayer-js/types';
 
 export const STUDIONET_CHAIN_ID = 61999;
-export const FROZEN_TERMSRAIL_CONTRACT = '0x1Bdd534a9db2519F130462ea8666B25cB5764C4b' as const;
+export const FROZEN_TERMSRAIL_CONTRACT = '0x561016E2bA38513ee3e4CCb39aAad454fDE30Ffd' as const;
+export const PREVIOUS_V3_TERMSRAIL_CONTRACT = '0x1Bdd534a9db2519F130462ea8666B25cB5764C4b' as const;
 export const ACCEPTED_V2_LOGICAL_CONTRACT = '0xcbC2eD344cb21dB2Dc0E7a4C22C67BF350F037dF' as const;
 export const ACCEPTED_V1_CONTRACT = '0x1de664E55F92BAcda496afBCfFA1b9b0Cf0a8457' as const;
 const ADDRESS_PATTERN=/^0x[0-9a-fA-F]{40}$/;
@@ -63,7 +64,7 @@ export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193,
   const [execution,state]=await Promise.allSettled([executionPromise,statePromise]);
   if(state.status==='rejected') throw state.reason;
   if(execution.status==='fulfilled') { assertSuccessfulExecution(execution.value); onPhase?.({phase:'SUCCESS',hash}); }
-  else onPhase?.({phase:'VERIFICATION_DELAYED',hash});
+  else { onPhase?.({phase:'VERIFICATION_DELAYED',hash}); throw new Error(`Canonical state was found, but transaction execution could not be verified: ${hash}`); }
   return { hash, receipt, state: state.value };
 }
 export async function readContract<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[] = []) { return clientFor(address, provider).readContract({ address: requireContract(), functionName, args: args as never[] }) as Promise<T>; }

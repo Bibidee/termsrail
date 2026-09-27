@@ -10,6 +10,23 @@ Fixtures covering allowed, prohibited, restricted, conflict, not-addressed, insu
 ### Snapshot failure
 Timeout, 500, empty render, model unavailable, malformed output, validator non-convergence. Verify no snapshot append/version bump/TTL extension.
 
+## Milestone correction coverage
+
+Completion and dispute adjudication now fetch only bounded HTTPS evidence, compare fetched bytes with the submitted SHA-256 manifest, and persist an explicit evidence state. Validators independently perform the same bounded assessment; statements and fetched content are untrusted data and cannot change protocol instructions. Direct Mode coverage includes unavailable and hostile evidence, append-only payer/recipient submissions, canonical settlement outcomes, non-payer settlement triggering, double-settlement guards, optional-step semantics, policy freezing/reassessment and receipt invalidation.
+
+The settlement state machine is:
+
+```text
+FUNDED/LOCKED
+  → evidence SUBMITTED
+  → UNDER_REVIEW / DISPUTED
+  → one canonical RELEASE or REFUND outcome
+  → TRANSFER_QUEUED
+  → RELEASED or REFUNDED
+```
+
+`OTHER`, insufficient or unverifiable evidence never authorizes a destination. It requires the explicit bounded recovery path. A caller may trigger an already-authorized outcome, but cannot choose its destination. Policy-bound plan authorization remains required at settlement time.
+
 ### Actions
 Valid structured action, duplicate action key, invalid enums, bounds, missing service.
 

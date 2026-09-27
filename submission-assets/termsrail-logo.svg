@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">TermsRail logo</title>
+  <desc id="desc">Three blue, coral, and lavender rails meeting a lavender checkpoint.</desc>
+  <rect width="1024" height="1024" fill="#FFFFFF"/>
+  <g transform="translate(182 262) scale(20)">
+    <path d="M0 0H33V5H0Z" fill="#315CFF"/>
+    <path d="M0 10H33V15H0Z" fill="#FF7D6E"/>
+    <path d="M0 20H33V25H0Z" fill="#B9A7FF"/>
+    <circle cx="27.5" cy="12.5" r="4.5" fill="#151B2B"/>
+    <circle cx="27.5" cy="12.5" r="2.5" fill="#E9E3FF"/>
+  </g>
+</svg>

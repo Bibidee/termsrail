@@ -1,9 +1,17 @@
 # TERMSRAIL
 
 Live frontend: https://termsrail.vercel.app  
-Studionet v3 custody contract: `0x1Bdd534a9db2519F130462ea8666B25cB5764C4b` (chain 61999). Deployment transaction: `0x7707579237eb0befcc020d859be045c71c5a9af68fa24cccdfe8b13242bf6929`.
+Latest reviewed contract: `0x561016E2bA38513ee3e4CCb39aAad454fDE30Ffd` (Studionet, chain 61999). Deployment transaction: `0x0717b3f11046711e699ab2cf4dae5c1149dcde7122e24f1f0ff5626e6856e0dd`. The service registry entry was copied from the previous v3 contract (`0x1Bdd534a9db2519F130462ea8666B25cB5764C4b`), but actions, plans, receipts, escrows, and custody were not migrated. The copied demo service is `NEEDS_SNAPSHOT`: its snapshot attempt ended `UNDETERMINED`, so authorization remains fail-closed until a valid snapshot is built.
 
 TermsRail is a Next.js dApp and GenLayer Intelligent Contract for consensus-backed policy execution gates. Policy snapshot extraction and material policy-change detection use semantic consensus; structured action authorization is deterministic derivation over the accepted snapshot.
+
+## Milestone correction state machine
+
+The accepted V1 boundary is commit `510e0e2fae`. The milestone adds policy-bound Agent Plans, authorization receipts, payable GEN custody, bounded completion evidence, dispute adjudication and canonical settlement. Completion and dispute submissions retain their bounded manifests, submitting wallet and party role. Validators independently fetch the same bounded references and treat every statement, metadata field and fetched body as untrusted evidence; prompt injection cannot alter the protocol or output schema. Hash mismatches, unavailable, malformed and oversized evidence fail closed and are reported explicitly.
+
+Each escrow has one canonical `settlement_outcome` for its current cycle. A `COMPLETED` adjudication authorizes `RELEASE`; a `NOT_COMPLETED` adjudication authorizes `REFUND`; insufficient or `OTHER` evidence leaves settlement unresolved until the explicit bounded recovery path is used. Historical or superseded verdicts cannot unlock opposing outcomes. Once a bounded outcome is canonical, either payer or recipient may trigger execution, but the contract chooses the destination and rejects redirects or double settlement. Policy-version, source-version, plan-hash and authorization-identity checks remain mandatory, and material policy changes freeze funded custody until reassessment and rebinding.
+
+Optional plan steps remain visible in authorization receipts but do not block an otherwise valid plan; required steps continue to gate execution. The frontend labels evidence submission, adjudication, unresolved outcomes, canonical settlement, policy freezes and stale/superseded state separately. Settlement is real payable GEN custody on the deployed contract, not a simulated balance.
 
 ## v3 policy-gated commerce with GEN custody
 
@@ -36,4 +44,4 @@ python -m pytest -q tests/test_contract_direct.py
 genvm-lint check contracts/termsrail.py
 ```
 
-The live CLI validation and v2 deployment were run on Studionet with the unlocked `fresh-bob` account. Snapshot consensus now uses independent semantic validation and fails closed when source evidence is unavailable; exact receipts are recorded in `HANDOFF.md`. The accepted v1 deployment remains documented there as the prior deployment and was not modified.
+The reviewed contract and production frontend cutover were completed on Studionet/Vercel; exact receipts, migration limits, and current status are recorded in `HANDOFF.md`. Snapshot consensus uses independent semantic validation and fails closed when source evidence is unavailable. The previous production contract remains deployed and was not modified.
