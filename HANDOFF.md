@@ -2,10 +2,10 @@
 
 ## Current audited release
 
-- Frontend source: exact main HEAD `a9256af9baf3131cef09428617862059c8fb38b7` (the document intentionally does not embed a mutable "current HEAD" claim).
+- Frontend source: see `git log -1` for the exact release HEAD (this document intentionally avoids a self-invalidating literal HEAD claim).
 - Frontend: https://termsrail.vercel.app
-- Production Vercel deployment: `dpl_H5LsFEHrYYbJFkcYLA7FEmwHpxCS`, Ready; deployment URL `https://termsrail-4wev8e418-bibidees-projects.vercel.app`.
-- Public production build check: `/api/version` reports `{"sha":"a9256af9baf3131cef09428617862059c8fb38b7","environment":"production"}`.
+- Production Vercel deployment: redeploy the exact release HEAD after this documentation update; verify its Ready deployment and `/api/version` before reporting production parity.
+- Public production build check: `/api/version` must report the exact release HEAD with `environment` set to `production`.
 - Production bundle uses `NEXT_PUBLIC_CONTRACT_ADDRESS=0x9Ce1b913C40e4F766ed816F05911D341Dd00aa1E`.
 - Current audited Studionet contract: `0x9Ce1b913C40e4F766ed816F05911D341Dd00aa1E`.
 - Deployment transaction: `0xbaad39ddadca399759ef27bc15a9c53fee713f50361620935a18147e9cdc5240`.
@@ -14,7 +14,7 @@
 - Deployed contract source SHA-256: `EAAD08F00E36FD8FA6EFA3956259FC285ADC5CDA9A660689F6B6A761A7D2ADAA`.
 - No records or custody were migrated from prior deployments.
 - Current live non-financial proofs: service `0` registration `0x9bebb6ca36ff2ba34aa21006e8667cabeeba2f9b0da4ecf688507d3e1f935a45`, accepted snapshot `0x3093f0561419e55313d05ab6ee067e509a7dcaf4110532c898531ded8931138a`, action `0` registration `0xdb4d0cb1560f92342e6c1af8ec7c44af0eb1d243bf3b3ca4b0d212cdb8aef589`, action `1` registration `0x73b30972a64106625e1574d9ce71cf8496345c26365172f755ab0c83d6264f02`, and action `1` authorization `0x695d6172854367e83d216a70982381675725520d09b259727ac4c240cdb0ba9e`.
-- These live proofs stop before escrow creation/funding because the plan approval remains pending in the user wallet; no GEN was moved by this audit pass.
+- These live proofs stop before escrow creation/funding because the plan approval remains pending in the user wallet; no GEN was moved by this audit pass. The escrow detail UI may still show `PENDING` completion-evidence/adjudication fields on a released escrow; those fields are workflow metadata and do not mean custody remains locked when status is `RELEASED` and the custody balance is zero.
 
 ## Previous production release (v3 custody-enabled)
 
