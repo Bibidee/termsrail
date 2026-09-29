@@ -1,5 +1,21 @@
 # TermsRail Handoff
 
+## Current audited release
+
+- Frontend source: exact main HEAD `a9256af9baf3131cef09428617862059c8fb38b7` (the document intentionally does not embed a mutable "current HEAD" claim).
+- Frontend: https://termsrail.vercel.app
+- Production Vercel deployment: `dpl_H5LsFEHrYYbJFkcYLA7FEmwHpxCS`, Ready; deployment URL `https://termsrail-4wev8e418-bibidees-projects.vercel.app`.
+- Public production build check: `/api/version` reports `{"sha":"a9256af9baf3131cef09428617862059c8fb38b7","environment":"production"}`.
+- Production bundle uses `NEXT_PUBLIC_CONTRACT_ADDRESS=0x9Ce1b913C40e4F766ed816F05911D341Dd00aa1E`.
+- Current audited Studionet contract: `0x9Ce1b913C40e4F766ed816F05911D341Dd00aa1E`.
+- Deployment transaction: `0xbaad39ddadca399759ef27bc15a9c53fee713f50361620935a18147e9cdc5240`.
+- Deployer: `0x7C65cE913F5665c11f1219048112C84CD6cb2a4B` (`fresh-alice`).
+- Contract receipt: FINALIZED, GenVM SUCCESS, consensus `MAJORITY_AGREE`.
+- Deployed contract source SHA-256: `EAAD08F00E36FD8FA6EFA3956259FC285ADC5CDA9A660689F6B6A761A7D2ADAA`.
+- No records or custody were migrated from prior deployments.
+- Current live non-financial proofs: service `0` registration `0x9bebb6ca36ff2ba34aa21006e8667cabeeba2f9b0da4ecf688507d3e1f935a45`, accepted snapshot `0x3093f0561419e55313d05ab6ee067e509a7dcaf4110532c898531ded8931138a`, action `0` registration `0xdb4d0cb1560f92342e6c1af8ec7c44af0eb1d243bf3b3ca4b0d212cdb8aef589`, action `1` registration `0x73b30972a64106625e1574d9ce71cf8496345c26365172f755ab0c83d6264f02`, and action `1` authorization `0x695d6172854367e83d216a70982381675725520d09b259727ac4c240cdb0ba9e`.
+- These live proofs stop before escrow creation/funding because the plan approval remains pending in the user wallet; no GEN was moved by this audit pass.
+
 ## Previous production release (v3 custody-enabled)
 
 - Frontend release commit: see `git log -1` (documentation intentionally avoids embedding a self-invalidating HEAD).
@@ -32,7 +48,7 @@
 - Source SHA-256: `1A6FC43EECA117CE5A4B7089C53F76C8602217D03492CF2CEEF74F0CFF2E9753`
 - Migration: previous registries remain deployed and untouched; no records or custody were migrated.
 
-## Current audited deployment (production target)
+## Current audited deployment (historical duplicate of the release above)
 
 - Network: Studionet, chain 61999
 - Contract: `0x9Ce1b913C40e4F766ed816F05911D341Dd00aa1E`
@@ -48,16 +64,16 @@
 - Deployment transaction: `0x114b149bd8ad87e78304c71031493286b9d43501cae304eb05e0f31215c74768`
 - Deployed contract source SHA-256: `E0556E46FB667C52CF637B25C5792EB79207EEA375422EF5F3214592C9B6C9C7`
 
-## Verification
+## Verification for the current audited release
 
-- Direct Mode: 31 passed for the deployed contract source
-- GenVM lint: static checks and SDK validation passed after rebuilding the local SDK cache
-- Frontend tests: 31 passed
+- Direct Mode: 36 passed for the deployed contract source
+- GenVM lint: `✓ Lint passed (3 checks)`
+- Frontend tests: 34 passed (5 files)
 - Typecheck: PASS
 - ESLint: 0 errors, 0 warnings
 - Production build: PASS
 - Custody recovery: when dispute consensus returns `OTHER`, the payer proposes `RELEASE` or `REFUND` with `resolve_dispute_choice`; the recipient must accept the identical bounded choice with `accept_dispute_choice` before custody moves.
-- Exact-head CI: PASS (see GitHub Actions history for the release commit)
+- Exact-head CI: PASS, run `36625413972`, https://github.com/Bibidee/termsrail/actions/runs/36625413972
 
 ## Milestone adjudication correction round
 
@@ -66,7 +82,7 @@
 - Dispute evidence is append-only and records `submission_id`, wallet, deterministic party role, statement, references and timestamp. Payer and recipient evidence are both included in adjudication.
 - Each escrow now carries one canonical settlement outcome for its current cycle. Historical verdicts cannot authorize opposing destinations. A finalized RELEASE always transfers to the recipient; a finalized REFUND always transfers to the payer; an `OTHER` recovery requires an explicit payer proposal plus matching recipient acceptance, and a second settlement is rejected.
 - Optional plan steps remain in receipts but do not block a plan; required steps continue to gate it. Policy change, plan hash, source/policy version and authorization identity checks remain mandatory.
-- Final correction validation: 36 Direct Mode tests and 34 frontend tests pass; typecheck, ESLint and build pass. GenVM static and SDK validation pass. Hosted CI run `36624291916` passed on exact HEAD `bf3f3fea19ff4804b7673f0cab8c5ac607bf8e81`.
+- Final correction validation: 36 Direct Mode tests and 34 frontend tests pass; typecheck, ESLint and build pass. GenVM static and SDK validation pass. Hosted CI run `36625413972` passed on exact HEAD `a9256af9baf3131cef09428617862059c8fb38b7`.
 - Audited contract source SHA-256: `EAAD08F00E36FD8FA6EFA3956259FC285ADC5CDA9A660689F6B6A761A7D2ADAA`.
 
 ## v3 custody checkpoint
