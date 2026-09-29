@@ -20,12 +20,47 @@ export function requireContract() { if (!ADDRESS_PATTERN.test(CONTRACT_ADDRESS))
 export async function getAuthorizedAccount(provider: Eip1193): Promise<string> { const accounts = await provider.request({ method: 'eth_accounts' }) as string[]; return accounts?.[0] ?? ''; }
 // StudioNet may place execution_result inside consensus_data.leader_receipt[], so arrays must be traversed.
 export function normalizeExecutionResult(receipt: unknown): string | undefined { const seen=new Set<unknown>(); const scalar=(value:unknown):string|undefined=>{if(typeof value==='number'||typeof value==='bigint')return executionResultNumberToName[String(value) as keyof typeof executionResultNumberToName];if(typeof value==='string'){const n=value.trim().toUpperCase();if(n==='1'||n==='SUCCESS')return ExecutionResult.FINISHED_WITH_RETURN;if(n==='2'||n==='ERROR'||n==='FAILURE')return ExecutionResult.FINISHED_WITH_ERROR;if(n==='0')return 'NOT_VOTED';if(n==='FINISHED_WITH_RETURN'||n==='FINISHED_WITH_ERROR'||n==='NOT_VOTED')return n}return undefined};const visit=(value:unknown,allowScalar=false):string|undefined=>{if(value===null||value===undefined||seen.has(value))return undefined;if(allowScalar){const direct=scalar(value);if(direct)return direct}if(Array.isArray(value)){seen.add(value);let provisional:string|undefined;for(let i=value.length-1;i>=0;i--){const result=visit(value[i]);if(result&&result!=='NOT_VOTED')return result;if(result)provisional=result}return provisional}if(typeof value==='object'){seen.add(value);const record=value as Record<string,unknown>;for(const key of ['txExecutionResultName','tx_execution_result_name','txExecutionResult','tx_execution_result','execution_result','executionResult']){const result=visit(record[key],true);if(result)return result}for(const key of ['data','consensus_data','consensusData','leader_receipt','leaderReceipt','validators','genvm_result','genvmResult','receipt','receipts']){const result=visit(record[key]);if(result)return result}}return undefined};return scalar(receipt)??visit(receipt); }
-export function assertSuccessfulExecution(execution: unknown): void { const normalized=normalizeExecutionResult(execution); if(normalized!==ExecutionResult.FINISHED_WITH_RETURN) throw new Error(`Transaction execution failed: ${normalized ?? 'UNKNOWN'}`); }
+function boundedExecutionReason(value: unknown): string | undefined {
+  const seen = new Set<unknown>();
+  const visit = (node: unknown): string | undefined => {
+    if (node === null || node === undefined || seen.has(node)) return undefined;
+    if (typeof node === 'string') {
+      const text = node.trim().replace(/\s+/g, ' ');
+      if (!text || text.length > 240 || /^(FINISHED_WITH_ERROR|ERROR|FAILURE)$/i.test(text)) return undefined;
+      return text;
+    }
+    if (typeof node !== 'object') return undefined;
+    seen.add(node);
+    if (Array.isArray(node)) { for (const item of node) { const result = visit(item); if (result) return result; } return undefined; }
+    const record = node as Record<string, unknown>;
+    for (const key of ['error_description','errorDescription','revert_reason','revertReason','raw_error','rawError','result','message']) {
+      const result = visit(record[key]);
+      if (result) return result;
+    }
+    for (const key of ['data','genvm_result','genvmResult','consensus_data','consensusData','leader_receipt','leaderReceipt','receipt']) {
+      const result = visit(record[key]);
+      if (result) return result;
+    }
+    return undefined;
+  };
+  return visit(value);
+}
+
+export function executionFailureMessage(execution: unknown, hash?: string): string {
+  const normalized = normalizeExecutionResult(execution);
+  const reason = boundedExecutionReason(execution);
+  const suffix = reason ? ` — ${reason}` : '';
+  return `Transaction execution failed: ${normalized ?? 'UNKNOWN'}${suffix}${hash ? ` (${hash})` : ''}`;
+}
+
+export function assertSuccessfulExecution(execution: unknown): void {
+  if (normalizeExecutionResult(execution) !== ExecutionResult.FINISHED_WITH_RETURN) throw new Error(executionFailureMessage(execution));
+}
 export const FINALITY_INTERVAL_MS=3000;
 export const FINALITY_RETRIES=100;
 const isFinalized=(receipt:unknown)=>{const r=receipt as {status?:unknown;statusName?:unknown;status_name?:unknown};const status=r?.status??r?.statusName??r?.status_name;return status===7||status==='7'||String(status).toUpperCase()==='FINALIZED'};
 export async function waitForFinalizedReceipt(client:any,hash:string,interval=FINALITY_INTERVAL_MS,retries=FINALITY_RETRIES):Promise<any>{let receipt: any;try{receipt=await client.waitForTransactionReceipt({hash,waitUntil:'finalized',interval,retries,fullTransaction:true} as never);if(isFinalized(receipt))return receipt}catch{}for(let attempt=0;attempt<retries;attempt++){if(attempt>0||!receipt)await new Promise(resolve=>setTimeout(resolve,interval));try{receipt=await client.getTransaction({hash});}catch(error){if(attempt===retries-1)throw error;continue}if(isFinalized(receipt))return receipt;if(String((receipt as {status?:unknown})?.status).toUpperCase()==='CANCELED')throw new Error('Transaction was canceled');}throw new Error(`Timed out waiting for transaction ${hash} to reach FINALIZED.`)}
-export async function waitForExecutionResult(client:any,hash:string,initialReceipt:unknown,interval=1500,retries=200):Promise<string>{let result=normalizeExecutionResult(initialReceipt);if(result===ExecutionResult.FINISHED_WITH_RETURN||result===ExecutionResult.FINISHED_WITH_ERROR)return result;for(let i=0;i<retries;i++){const delay=i<20?interval:i<40?3000:5000;await new Promise(resolve=>setTimeout(resolve,delay));try{result=normalizeExecutionResult(await client.getTransaction({hash}));}catch(error){if(i===retries-1)throw error;continue}if(result===ExecutionResult.FINISHED_WITH_RETURN||result===ExecutionResult.FINISHED_WITH_ERROR)return result}throw new Error(`Transaction finalized, but execution result could not yet be verified: ${hash}`)}
+export async function waitForExecutionResult(client:any,hash:string,initialReceipt:unknown,interval=1500,retries=200):Promise<string>{let result=normalizeExecutionResult(initialReceipt);if(result===ExecutionResult.FINISHED_WITH_RETURN)return result;if(result===ExecutionResult.FINISHED_WITH_ERROR)throw new Error(executionFailureMessage(initialReceipt,hash));for(let i=0;i<retries;i++){const delay=i<20?interval:i<40?3000:5000;await new Promise(resolve=>setTimeout(resolve,delay));let candidate:unknown;try{candidate=await client.getTransaction({hash});result=normalizeExecutionResult(candidate);}catch(error){if(i===retries-1)throw error;continue}if(result===ExecutionResult.FINISHED_WITH_RETURN)return result;if(result===ExecutionResult.FINISHED_WITH_ERROR)throw new Error(executionFailureMessage(candidate,hash));}throw new Error(`Transaction finalized, but execution result could not yet be verified: ${hash}`)}
 export function resolveServiceId(rows: unknown[], serviceKey: string): string | number | undefined { for (const raw of rows) { try { const value = (typeof raw==='string'?JSON.parse(raw):raw) as {service_key?:string;id?:string|number;service_id?:string|number}; if (value?.service_key === serviceKey) return value.id ?? value.service_id; } catch {} } return undefined; }
 export function resolveActionId(rows: unknown[], actionKey: string, serviceId?: string | number): string | number | undefined { for (const raw of rows) { try { const value = (typeof raw==='string'?JSON.parse(raw):raw) as {action_key?:string;id?:string|number;action_id?:string|number;service_id?:string|number;spec?:{action_key?:string}}; if ((value?.spec?.action_key??value?.action_key) === actionKey && (serviceId===undefined || String(value?.service_id)===String(serviceId))) return value.id ?? value.action_id; } catch {} } return undefined; }
 export function resolvePlanId(rows: unknown[], expected: {creator?: string; title: string; description: string; steps: unknown[]}): string | number | undefined { for (const raw of rows) { try { const value = (typeof raw==='string'?JSON.parse(raw):raw) as {plan_id?:string|number;id?:string|number;creator?:string;title?:string;description?:string;steps?:unknown[]}; if (value?.title!==expected.title || value?.description!==expected.description) continue; if (expected.creator && String(value?.creator).toLowerCase()!==expected.creator.toLowerCase()) continue; if (JSON.stringify(value?.steps??[])!==JSON.stringify(expected.steps)) continue; return value.plan_id ?? value.id; } catch {} } return undefined; }
