@@ -341,6 +341,35 @@ def test_other_dispute_requires_explicit_bounded_choice(direct_deploy, direct_vm
     assert '"settlement_status": "REFUND_TO_PAYER"' in c.get_escrow(eid)
     with direct_vm.expect_revert("explicit dispute choice unavailable"): c.resolve_dispute_choice(did,"RELEASE")
 
+def test_other_dispute_release_requires_matching_recipient_acceptance(direct_deploy, direct_vm):
+    response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"other-release",{"status":200,"body":"allowed terms"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response)); c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12")
+    sid=c.register_service("other-release","Other Release","other-release.example.com","https://other-release.example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); aid=c.register_action(sid,"other-release-action","OTHER","work",fields()); c.authorize_action(aid); pid=c.create_plan("Other Release","bounded choice",json.dumps([{"service_id":sid,"action_id":aid}])); c.authorize_plan(pid); eid=c.create_escrow(pid,"0x0000000000000000000000000000000000000002",1,int(time.time())+3600); fund_escrow(c,direct_vm,eid); did=c.open_dispute(eid,"release requested"); direct_vm.mock_llm(r"Classify this bounded dispute outcome",json.dumps({"verdict":"OTHER"})); direct_vm.warp("2100-01-01T00:00:00Z"); assert c.adjudicate_dispute(did)=="OTHER"; assert c.resolve_dispute_choice(did,"RELEASE")=="AWAITING_COUNTERPARTY"
+    payer=direct_vm.sender; direct_vm.sender=bytes.fromhex("00"*19+"03")
+    try:
+        with direct_vm.expect_revert("recipient acceptance required"): c.accept_dispute_choice(did,"RELEASE")
+        direct_vm.sender=bytes.fromhex("00"*19+"02")
+        with direct_vm.expect_revert("dispute choice mismatch"): c.accept_dispute_choice(did,"REFUND")
+        assert c.accept_dispute_choice(did,"RELEASE")=="RESOLVED_RELEASE"
+    finally: direct_vm.sender=payer
+    escrow=json.loads(c.get_escrow(eid)); assert escrow["status"]=="RELEASED" and escrow["settlement_outcome"]=="RELEASE" and escrow["settlement_source"]=="MUTUAL_OTHER_CHOICE"
+
+def test_other_dispute_timeout_refunds_without_counterparty_and_cannot_double_settle(direct_deploy, direct_vm):
+    response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"other-timeout",{"status":200,"body":"allowed terms"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response)); c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12")
+    sid=c.register_service("other-timeout","Other Timeout","other-timeout.example.com","https://other-timeout.example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); aid=c.register_action(sid,"other-timeout-action","OTHER","work",fields()); c.authorize_action(aid); pid=c.create_plan("Other Timeout","bounded timeout",json.dumps([{"service_id":sid,"action_id":aid}])); c.authorize_plan(pid); eid=c.create_escrow(pid,"0x0000000000000000000000000000000000000002",1,int(time.time())+3600); fund_escrow(c,direct_vm,eid); did=c.open_dispute(eid,"no response"); direct_vm.mock_llm(r"Classify this bounded dispute outcome",json.dumps({"verdict":"OTHER"})); direct_vm.warp("2100-01-01T00:00:00Z"); assert c.adjudicate_dispute(did)=="OTHER"; assert c.resolve_dispute_choice(did,"REFUND")=="AWAITING_COUNTERPARTY"; proposal=json.loads(c.get_dispute(did)); assert proposal["resolution_status"]=="AWAITING_COUNTERPARTY" and proposal["resolution_deadline"]>0
+    direct_vm.warp("2100-01-01T00:20:00Z"); assert c.resolve_expired_dispute_proposal(did)=="RESOLVED_REFUND"; escrow=json.loads(c.get_escrow(eid)); dispute=json.loads(c.get_dispute(did)); assert escrow["status"]=="REFUNDED" and escrow["custody"]=="TRANSFER_QUEUED" and escrow["settlement_source"]=="OTHER_TIMEOUT_REFUND" and dispute["resolution_status"]=="TIMEOUT_REFUND"
+    with direct_vm.expect_revert("dispute proposal not expired"): c.resolve_expired_dispute_proposal(did)
+    recipient=direct_vm.sender; direct_vm.sender=bytes.fromhex("00"*19+"02")
+    try:
+        with direct_vm.expect_revert("dispute choice not awaiting acceptance"): c.accept_dispute_choice(did,"REFUND")
+    finally: direct_vm.sender=recipient
+
+def test_other_dispute_active_proposal_cannot_be_replaced_or_reused_after_expiry(direct_deploy, direct_vm):
+    response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"other-proposal",{"status":200,"body":"allowed terms"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response)); c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12")
+    sid=c.register_service("other-proposal","Other Proposal","other-proposal.example.com","https://other-proposal.example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); aid=c.register_action(sid,"other-proposal-action","OTHER","work",fields()); c.authorize_action(aid); pid=c.create_plan("Other Proposal","proposal lifecycle",json.dumps([{"service_id":sid,"action_id":aid}])); c.authorize_plan(pid); eid=c.create_escrow(pid,"0x0000000000000000000000000000000000000002",1,int(time.time())+3600); fund_escrow(c,direct_vm,eid); did=c.open_dispute(eid,"proposal lifecycle"); direct_vm.mock_llm(r"Classify this bounded dispute outcome",json.dumps({"verdict":"OTHER"})); direct_vm.warp("2100-01-01T00:00:00Z"); c.adjudicate_dispute(did); assert c.resolve_dispute_choice(did,"REFUND")=="AWAITING_COUNTERPARTY"
+    with direct_vm.expect_revert("explicit dispute choice unavailable"): c.resolve_dispute_choice(did,"RELEASE")
+    direct_vm.warp("2100-01-01T00:20:00Z"); assert c.resolve_expired_dispute_proposal(did)=="RESOLVED_REFUND"
+    with direct_vm.expect_revert("explicit dispute choice unavailable"): c.resolve_dispute_choice(did,"REFUND")
+
 def test_active_dispute_expiry_cannot_strand_release_or_refund(direct_deploy, direct_vm):
     response={d:"ALLOWED" for d in DIMENSIONS}
     direct_vm.mock_web(r"expiry-dispute",{"status":200,"body":"allowed terms"})

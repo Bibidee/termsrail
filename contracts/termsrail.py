@@ -14,6 +14,7 @@ MAX_PLANS,MAX_PLAN_STEPS=256,32
 MAX_ESCROWS,MAX_COMPLETIONS,MAX_DISPUTES,MAX_DISPUTE_EVIDENCE=512,1024,512,16
 MAX_ESCROW_DURATION=2592000
 DISPUTE_RESPONSE_WINDOW=3600
+DISPUTE_PROPOSAL_WINDOW=900
 MAX_SERVICES,MAX_ACTIONS,MAX_SNAPSHOTS_PER_SERVICE,MAX_AUTHS_PER_ACTION,MAX_CHANGES_PER_SERVICE=256,1024,32,64,64
 EVIDENCE_VALUES=["SUFFICIENT","PARTIAL","INSUFFICIENT","UNAVAILABLE","UNKNOWN"]
 COMPLETION_VERDICTS=["COMPLETED","PARTIALLY_COMPLETED","NOT_COMPLETED","EVIDENCE_INSUFFICIENT","EVIDENCE_CONFLICT"]
@@ -553,7 +554,7 @@ class TermsRail(gl.Contract):
         if escrow.get("custody")!="HELD" or now()>escrow["deadline"]: raise gl.vm.UserError("escrow execution blocked")
         if escrow["status"]!="FROZEN_POLICY_CHANGE" and (not self.escrow_binding_valid(eid) or not self.is_plan_executable(escrow["plan_id"])): raise gl.vm.UserError("escrow execution blocked")
         if len(self.dispute_ids)>=MAX_DISPUTES: raise gl.vm.UserError("dispute capacity reached")
-        did=str(self.next_dispute_id); self.next_dispute_id+=1; created=now(); record={"dispute_id":did,"escrow_id":str(eid),"opener":str(gl.message.sender_address),"statement":clean(statement,2000),"status":"DISPUTED","created_at":created,"response_deadline":created+DISPUTE_RESPONSE_WINDOW,"adjudication_verdict":"","resolution_choice":""}; self.disputes[did]=json.dumps(record,sort_keys=True); self.dispute_ids.append(did); self.dispute_histories[did]=[self.disputes[did]]; escrow["status"]="DISPUTED"; self.escrows[str(eid)]=json.dumps(escrow,sort_keys=True); self.escrow_histories[str(eid)].append(self.escrows[str(eid)]); return did
+        did=str(self.next_dispute_id); self.next_dispute_id+=1; created=now(); record={"dispute_id":did,"escrow_id":str(eid),"opener":str(gl.message.sender_address),"statement":clean(statement,2000),"status":"DISPUTED","created_at":created,"response_deadline":created+DISPUTE_RESPONSE_WINDOW,"adjudication_verdict":"","resolution_choice":"","resolution_proposed_at":0,"resolution_deadline":0,"resolution_attempt":0,"resolution_status":"NONE"}; self.disputes[did]=json.dumps(record,sort_keys=True); self.dispute_ids.append(did); self.dispute_histories[did]=[self.disputes[did]]; escrow["status"]="DISPUTED"; self.escrows[str(eid)]=json.dumps(escrow,sort_keys=True); self.escrow_histories[str(eid)].append(self.escrows[str(eid)]); return did
     @gl.public.write
     def submit_dispute_evidence(self,did:str,statement:str,evidence_urls:str,evidence_hashes:str)->str:
         raw=self.disputes.get(str(did),"")
@@ -658,9 +659,9 @@ class TermsRail(gl.Contract):
         if escrow.get("status")!="DISPUTED": raise gl.vm.UserError("escrow is not awaiting this dispute")
         if outcome not in ("RELEASE","REFUND"): raise gl.vm.UserError("invalid dispute choice")
         if escrow.get("custody")!="HELD" or not escrow.get("funding_snapshot") or self.balance < u256(escrow["amount"]): raise gl.vm.UserError("escrow custody unavailable")
-        dispute["resolution_choice"]=outcome
-        dispute["resolution_proposed_by"]=str(gl.message.sender_address)
-        dispute["status"]="AWAITING_COUNTERPARTY"
+        if dispute.get("resolution_status") not in (None,"NONE","EXPIRED") or dispute.get("resolution_deadline",0)>now(): raise gl.vm.UserError("active dispute proposal exists")
+        proposed_at=now()
+        dispute.update({"resolution_choice":outcome,"resolution_proposed_by":str(gl.message.sender_address),"resolution_proposed_at":proposed_at,"resolution_deadline":proposed_at+DISPUTE_PROPOSAL_WINDOW,"resolution_attempt":int(dispute.get("resolution_attempt",0))+1,"resolution_status":"AWAITING_COUNTERPARTY","status":"AWAITING_COUNTERPARTY"})
         encoded=json.dumps(dispute,sort_keys=True); self.disputes[str(did)]=encoded; self.dispute_histories[str(did)].append(encoded)
         return dispute["status"]
 
@@ -672,6 +673,7 @@ class TermsRail(gl.Contract):
         dispute=json.loads(raw); escrow_raw=self.escrows.get(dispute["escrow_id"],""); escrow=json.loads(escrow_raw) if escrow_raw else {}
         if str(gl.message.sender_address)!=escrow.get("recipient"): raise gl.vm.UserError("recipient acceptance required")
         if dispute.get("status")!="AWAITING_COUNTERPARTY" or dispute.get("adjudication_verdict")!="OTHER": raise gl.vm.UserError("dispute choice not awaiting acceptance")
+        if now()>=int(dispute.get("resolution_deadline",0)): raise gl.vm.UserError("dispute proposal expired")
         if dispute.get("resolution_choice")!=outcome or outcome not in ("RELEASE","REFUND"): raise gl.vm.UserError("dispute choice mismatch")
         if escrow.get("status")!="DISPUTED": raise gl.vm.UserError("escrow is not awaiting this dispute")
         if escrow.get("custody")!="HELD" or not escrow.get("funding_snapshot") or self.balance < u256(escrow["amount"]): raise gl.vm.UserError("escrow custody unavailable")
@@ -680,9 +682,29 @@ class TermsRail(gl.Contract):
             escrow.update({"status":"RELEASED","custody":"TRANSFER_QUEUED","settlement_status":"RELEASE_TO_RECIPIENT"})
         else:
             escrow.update({"status":"REFUNDED","custody":"TRANSFER_QUEUED","settlement_status":"REFUND_TO_PAYER"})
-        self.escrows[dispute["escrow_id"]]=json.dumps(escrow,sort_keys=True); self.escrow_histories[dispute["escrow_id"]].append(self.escrows[dispute["escrow_id"]]); dispute["status"]="RESOLVED_RELEASE" if outcome=="RELEASE" else "RESOLVED_REFUND"; encoded=json.dumps(dispute,sort_keys=True); self.disputes[str(did)]=encoded; self.dispute_histories[str(did)].append(encoded)
+        self.escrows[dispute["escrow_id"]]=json.dumps(escrow,sort_keys=True); self.escrow_histories[dispute["escrow_id"]].append(self.escrows[dispute["escrow_id"]]); dispute.update({"status":"RESOLVED_RELEASE" if outcome=="RELEASE" else "RESOLVED_REFUND","resolution_status":"ACCEPTED","resolved_at":now()}); encoded=json.dumps(dispute,sort_keys=True); self.disputes[str(did)]=encoded; self.dispute_histories[str(did)].append(encoded)
         destination=escrow["recipient"] if outcome=="RELEASE" else escrow["payer"]
         _Recipient(Address(destination)).emit_transfer(value=u256(escrow["amount"])); return dispute["status"]
+
+    @gl.public.write
+    def resolve_expired_dispute_proposal(self,did:str)->str:
+        """Deterministic bounded recovery when the recipient does not answer.
+
+        A silent counterparty never authorizes a transfer to the recipient. Once
+        the explicit proposal window expires, held custody is returned to the
+        payer, preserving principal and preventing indefinite custody. Anyone
+        may trigger this canonical timeout after the stored deadline.
+        """
+        raw=self.disputes.get(str(did),"")
+        if not raw: raise gl.vm.UserError("dispute not found")
+        dispute=json.loads(raw); escrow=json.loads(self.escrows.get(dispute.get("escrow_id",""),"{}"))
+        if dispute.get("status")!="AWAITING_COUNTERPARTY" or dispute.get("adjudication_verdict")!="OTHER": raise gl.vm.UserError("dispute proposal not expired")
+        deadline=int(dispute.get("resolution_deadline",0))
+        if deadline<=0 or now()<deadline: raise gl.vm.UserError("dispute proposal not expired")
+        if escrow.get("status")!="DISPUTED" or escrow.get("custody")!="HELD": raise gl.vm.UserError("escrow custody unavailable")
+        if not self.settlement_ready(escrow,dispute["escrow_id"],"REFUND"): self.canonical_settlement_outcome(escrow,"REFUND","OTHER_TIMEOUT_REFUND")
+        if self.balance<u256(escrow["amount"]): raise gl.vm.UserError("escrow custody unavailable")
+        escrow.update({"status":"REFUNDED","custody":"TRANSFER_QUEUED","settlement_status":"REFUND_TO_PAYER"}); self.escrows[dispute["escrow_id"]]=json.dumps(escrow,sort_keys=True); self.escrow_histories[dispute["escrow_id"]].append(self.escrows[dispute["escrow_id"]]); dispute.update({"status":"RESOLVED_REFUND","resolution_status":"TIMEOUT_REFUND","resolved_at":now(),"resolution_outcome":"REFUND"}); encoded=json.dumps(dispute,sort_keys=True); self.disputes[str(did)]=encoded; self.dispute_histories[str(did)].append(encoded); _Recipient(Address(escrow["payer"])).emit_transfer(value=u256(escrow["amount"])); return dispute["status"]
     @gl.public.view
     def get_completion(self,cid:str)->str:return self.completions.get(str(cid),"")
     @gl.public.view
