@@ -15,7 +15,7 @@
 - No records or custody were migrated from prior deployments.
 - Hosted CI and final frontend deployment are release gates; the exact successful run and production deployment are recorded with the final release report rather than duplicated as mutable values here.
 - Current live non-financial proofs: service `0` registration `0x9bebb6ca36ff2ba34aa21006e8667cabeeba2f9b0da4ecf688507d3e1f935a45`, accepted snapshot `0x3093f0561419e55313d05ab6ee067e509a7dcaf4110532c898531ded8931138a`, action `0` registration `0xdb4d0cb1560f92342e6c1af8ec7c44af0eb1d243bf3b3ca4b0d212cdb8aef589`, action `1` registration `0x73b30972a64106625e1574d9ce71cf8496345c26365172f755ab0c83d6264f02`, and action `1` authorization `0x695d6172854367e83d216a70982381675725520d09b259727ac4c240cdb0ba9e`.
-- These live proofs stop before escrow creation/funding because the plan approval remains pending in the user wallet; no GEN was moved by this audit pass. The escrow detail UI may still show `PENDING` completion-evidence/adjudication fields on a released escrow; those fields are workflow metadata and do not mean custody remains locked when status is `RELEASED` and the custody balance is zero.
+- Plan `0` is now canonically authorized with an `ALLOWED` gate and receipt; live proofs stop before escrow creation/funding because a distinct second-wallet recipient has not been confirmed, so no GEN was moved by this audit pass. The escrow detail UI may still show `PENDING` completion-evidence/adjudication fields on a released escrow; those fields are workflow metadata and do not mean custody remains locked when status is `RELEASED` and the custody balance is zero.
 
 ## Previous production release (v3 custody-enabled)
 
