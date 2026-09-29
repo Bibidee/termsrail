@@ -22,7 +22,7 @@
 - Snapshot tx `0xd7f9fba92a02b4c6ab980acb4fac59ab60c4c6559226a890fdc29a1d29466464` ended `UNDETERMINED` after four rounds. The copied demo service therefore remains `NEEDS_SNAPSHOT` (policy version 0); do not treat it as an active authorization basis. Retry only with valid source evidence and accepted consensus.
 - Production build and aliasing succeeded after `.vercelignore` excluded local test/cache artifacts. Read-only verification returned HTTP 200 for the production home and `/escrow`, and `/api/version` reported production environment. The live escrow page now explains the creation/funding prerequisites and the missing accepted snapshot.
 
-## Current escrow correction deployment (production)
+## Previous custody deployment (retained)
 
 - Network: Studionet, chain 61999
 - Contract: `0x744102f8f1C89a7568c135f3cbB650f6995e1599`
@@ -31,6 +31,16 @@
 - Receipt: FINALIZED, GenVM SUCCESS, consensus `MAJORITY_AGREE`
 - Source SHA-256: `1A6FC43EECA117CE5A4B7089C53F76C8602217D03492CF2CEEF74F0CFF2E9753`
 - Migration: previous registries remain deployed and untouched; no records or custody were migrated.
+
+## Current audited deployment (production target)
+
+- Network: Studionet, chain 61999
+- Contract: `0x9Ce1b913C40e4F766ed816F05911D341Dd00aa1E`
+- Deployment transaction: `0xbaad39ddadca399759ef27bc15a9c53fee713f50361620935a18147e9cdc5240`
+- Deployer: `0x7C65cE913F5665c11f1219048112C84CD6cb2a4B` (`fresh-alice`)
+- Receipt: FINALIZED, GenVM SUCCESS, consensus `MAJORITY_AGREE`
+- Source SHA-256: `EAAD08F00E36FD8FA6EFA3956259FC285ADC5CDA9A660689F6B6A761A7D2ADAA`
+- Migration: the prior custody deployment remains untouched; the new registry starts empty.
 
 ## Accepted v1 deployment (untouched)
 
@@ -56,8 +66,8 @@
 - Dispute evidence is append-only and records `submission_id`, wallet, deterministic party role, statement, references and timestamp. Payer and recipient evidence are both included in adjudication.
 - Each escrow now carries one canonical settlement outcome for its current cycle. Historical verdicts cannot authorize opposing destinations. A finalized RELEASE always transfers to the recipient; a finalized REFUND always transfers to the payer; an `OTHER` recovery requires an explicit payer proposal plus matching recipient acceptance, and a second settlement is rejected.
 - Optional plan steps remain in receipts but do not block a plan; required steps continue to gate it. Policy change, plan hash, source/policy version and authorization identity checks remain mandatory.
-- Final correction validation: 35 Direct Mode tests and 31 frontend tests pass; typecheck, ESLint and build pass. GenVM static and SDK validation pass. Hosted CI run `36598439817` passed on the exact release commit. The corrected contract is deployed at the current production address above.
-- Corrected contract source SHA-256: `1A6FC43EECA117CE5A4B7089C53F76C8602217D03492CF2CEEF74F0CFF2E9753`.
+- Final correction validation: 36 Direct Mode tests and 34 frontend tests pass; typecheck, ESLint and build pass. GenVM static and SDK validation pass. Hosted CI run `36624291916` passed on exact HEAD `bf3f3fea19ff4804b7673f0cab8c5ac607bf8e81`.
+- Audited contract source SHA-256: `EAAD08F00E36FD8FA6EFA3956259FC285ADC5CDA9A660689F6B6A761A7D2ADAA`.
 
 ## v3 custody checkpoint
 

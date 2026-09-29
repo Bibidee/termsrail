@@ -1,13 +1,13 @@
 # TERMSRAIL
 
 Live frontend: https://termsrail.vercel.app  
-Latest reviewed contract: `0x744102f8f1C89a7568c135f3cbB650f6995e1599` (Studionet, chain 61999). Deployment transaction: `0x8c9f87d938a89d0a4d8067d746c045b25d5f65ff36a7aaf73ff64df2dd9a34ba`. Source SHA-256: `1A6FC43EECA117CE5A4B7089C53F76C8602217D03492CF2CEEF74F0CFF2E9753`. This is a fresh deployment; prior service, action, plan, receipt, escrow and custody records were not migrated.
+Latest reviewed contract: `0x9Ce1b913C40e4F766ed816F05911D341Dd00aa1E` (Studionet, chain 61999). Deployment transaction: `0xbaad39ddadca399759ef27bc15a9c53fee713f50361620935a18147e9cdc5240`. Source SHA-256: `EAAD08F00E36FD8FA6EFA3956259FC285ADC5CDA9A660689F6B6A761A7D2ADAA`. This is a fresh deployment; prior service, action, plan, receipt, escrow and custody records were not migrated.
 
 TermsRail is a Next.js dApp and GenLayer Intelligent Contract for consensus-backed policy execution gates. Policy snapshot extraction and material policy-change detection use semantic consensus; structured action authorization is deterministic derivation over the accepted snapshot.
 
 ## Escrow correction status
 
-The escrow correction is deployed at `0x744102f8f1C89a7568c135f3cbB650f6995e1599`. It adds immutable funding snapshots, escrow deadlines independent of policy-authorization expiry, bounded dispute response windows, method-specific canonical readbacks, and strict finalized-execution sequencing. The previous `0x3D03382e2BEc45c34a67b00A82329F576A32B826` registry remains deployed and untouched; records are not migrated automatically.
+The current custody-enabled contract is deployed at `0x9Ce1b913C40e4F766ed816F05911D341Dd00aa1E`. It adds immutable funding snapshots, escrow deadlines independent of policy-authorization expiry, bounded dispute response windows, method-specific canonical readbacks, strict finalized-execution sequencing, and a two-party `OTHER` dispute recovery handshake. The previous custody deployment `0x744102f8f1C89a7568c135f3cbB650f6995e1599` and earlier registries remain deployed and untouched; records and custody are not migrated automatically.
 
 ## Milestone correction state machine
 
