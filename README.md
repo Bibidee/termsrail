@@ -5,13 +5,17 @@ Latest reviewed contract: `0x3D03382e2BEc45c34a67b00A82329F576A32B826` (Studione
 
 TermsRail is a Next.js dApp and GenLayer Intelligent Contract for consensus-backed policy execution gates. Policy snapshot extraction and material policy-change detection use semantic consensus; structured action authorization is deterministic derivation over the accepted snapshot.
 
+## Escrow correction status
+
+The deployed production registry remains `0x3D03382e2BEc45c34a67b00A82329F576A32B826` until the escrow correction in this working tree is separately reviewed and deployed. The correction adds immutable funding snapshots, escrow deadlines independent of policy-authorization expiry, bounded dispute response windows, method-specific canonical readbacks, and strict finalized-execution sequencing. It has not been deployed or used to claim live escrow receipts; production records remain on the deployed address above and are not migrated automatically.
+
 ## Milestone correction state machine
 
 The accepted V1 boundary is commit `510e0e2fae`. The milestone adds policy-bound Agent Plans, authorization receipts, payable GEN custody, bounded completion evidence, dispute adjudication and canonical settlement. Completion and dispute submissions retain their bounded manifests, submitting wallet and party role. Validators independently fetch the same bounded references and treat every statement, metadata field and fetched body as untrusted evidence; prompt injection cannot alter the protocol or output schema. Hash mismatches, unavailable, malformed and oversized evidence fail closed and are reported explicitly.
 
 Each escrow has one canonical `settlement_outcome` for its current cycle. A `COMPLETED` adjudication authorizes `RELEASE`; a `NOT_COMPLETED` adjudication authorizes `REFUND`; insufficient or `OTHER` evidence leaves settlement unresolved until the explicit bounded recovery path is used. Historical or superseded verdicts cannot unlock opposing outcomes. Once a bounded outcome is canonical, either payer or recipient may trigger execution, but the contract chooses the destination and rejects redirects or double settlement. Policy-version, source-version, plan-hash and authorization-identity checks remain mandatory, and material policy changes freeze funded custody until reassessment and rebinding.
 
-Optional plan steps remain visible in authorization receipts but do not block an otherwise valid plan; required steps continue to gate execution. The frontend labels evidence submission, adjudication, unresolved outcomes, canonical settlement, policy freezes and stale/superseded state separately. Settlement is real payable GEN custody on the deployed contract, not a simulated balance.
+Optional plan steps remain visible in authorization receipts but do not block an otherwise valid plan; required steps continue to gate execution. The frontend labels evidence submission, adjudication, unresolved outcomes, canonical settlement, policy freezes and stale/superseded state separately. Settlement is real payable GEN custody on the deployed contract; the pending correction above must be deployed before its new escrow guarantees are available in production. The frontend never substitutes a placeholder balance for canonical custody.
 
 ## v3 policy-gated commerce with GEN custody
 

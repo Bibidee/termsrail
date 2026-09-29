@@ -8,7 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:deployment": "node scripts/check-deployment-config.mjs"
   },
   "keywords": [],
   "author": "",

@@ -3,13 +3,16 @@ import { studionet } from 'genlayer-js/chains';
 import { ExecutionResult, executionResultNumberToName } from 'genlayer-js/types';
 
 export const STUDIONET_CHAIN_ID = 61999;
-export const FROZEN_TERMSRAIL_CONTRACT = '0x561016E2bA38513ee3e4CCb39aAad454fDE30Ffd' as const;
+export const FROZEN_TERMSRAIL_CONTRACT = '0x3D03382e2BEc45c34a67b00A82329F576A32B826' as const;
 export const PREVIOUS_V3_TERMSRAIL_CONTRACT = '0x1Bdd534a9db2519F130462ea8666B25cB5764C4b' as const;
 export const ACCEPTED_V2_LOGICAL_CONTRACT = '0xcbC2eD344cb21dB2Dc0E7a4C22C67BF350F037dF' as const;
 export const ACCEPTED_V1_CONTRACT = '0x1de664E55F92BAcda496afBCfFA1b9b0Cf0a8457' as const;
 const ADDRESS_PATTERN=/^0x[0-9a-fA-F]{40}$/;
 export function resolveContractAddress(value:string|undefined): `0x${string}` { const candidate=(value??'').trim(); return (ADDRESS_PATTERN.test(candidate)?candidate:FROZEN_TERMSRAIL_CONTRACT) as `0x${string}`; }
-export const CONTRACT_ADDRESS = resolveContractAddress(process.env.NEXT_PUBLIC_CONTRACT_ADDRESS);
+// Keep the runtime value untrusted until requireContract validates it.  A
+// missing or malformed production variable must surface as a configuration
+// error instead of silently targeting a different deployment.
+export const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS??'').trim() as `0x${string}`;
 export type Eip1193 = { request(args: { method: string; params?: unknown[] }): Promise<unknown>; on?: (event: string, handler: (...args: unknown[]) => void) => void; removeListener?: (event: string, handler: (...args: unknown[]) => void) => void };
 
 export function requireContract() { if (!ADDRESS_PATTERN.test(CONTRACT_ADDRESS)) throw new Error('TermsRail contract is not configured correctly.'); return CONTRACT_ADDRESS; }
@@ -20,7 +23,7 @@ export function assertSuccessfulExecution(execution: unknown): void { const norm
 export const FINALITY_INTERVAL_MS=3000;
 export const FINALITY_RETRIES=100;
 const isFinalized=(receipt:unknown)=>{const r=receipt as {status?:unknown;statusName?:unknown;status_name?:unknown};const status=r?.status??r?.statusName??r?.status_name;return status===7||status==='7'||String(status).toUpperCase()==='FINALIZED'};
-export async function waitForFinalizedReceipt(client:any,hash:string,interval=FINALITY_INTERVAL_MS,retries=FINALITY_RETRIES):Promise<any>{let receipt=await client.waitForTransactionReceipt({hash,waitUntil:'finalized',interval,retries,fullTransaction:true} as never);if(isFinalized(receipt))return receipt;for(let attempt=0;attempt<retries;attempt++){await new Promise(resolve=>setTimeout(resolve,interval));receipt=await client.getTransaction({hash});if(isFinalized(receipt))return receipt;if(String((receipt as {status?:unknown})?.status).toUpperCase()==='CANCELED')throw new Error('Transaction was canceled');}throw new Error(`Timed out waiting for transaction ${hash} to reach FINALIZED.`)}
+export async function waitForFinalizedReceipt(client:any,hash:string,interval=FINALITY_INTERVAL_MS,retries=FINALITY_RETRIES):Promise<any>{let receipt: any;try{receipt=await client.waitForTransactionReceipt({hash,waitUntil:'finalized',interval,retries,fullTransaction:true} as never);if(isFinalized(receipt))return receipt}catch{}for(let attempt=0;attempt<retries;attempt++){if(attempt>0||!receipt)await new Promise(resolve=>setTimeout(resolve,interval));try{receipt=await client.getTransaction({hash});}catch(error){if(attempt===retries-1)throw error;continue}if(isFinalized(receipt))return receipt;if(String((receipt as {status?:unknown})?.status).toUpperCase()==='CANCELED')throw new Error('Transaction was canceled');}throw new Error(`Timed out waiting for transaction ${hash} to reach FINALIZED.`)}
 export async function waitForExecutionResult(client:any,hash:string,initialReceipt:unknown,interval=1500,retries=200):Promise<string>{let result=normalizeExecutionResult(initialReceipt);if(result===ExecutionResult.FINISHED_WITH_RETURN||result===ExecutionResult.FINISHED_WITH_ERROR)return result;for(let i=0;i<retries;i++){const delay=i<20?interval:i<40?3000:5000;await new Promise(resolve=>setTimeout(resolve,delay));try{result=normalizeExecutionResult(await client.getTransaction({hash}));}catch(error){if(i===retries-1)throw error;continue}if(result===ExecutionResult.FINISHED_WITH_RETURN||result===ExecutionResult.FINISHED_WITH_ERROR)return result}throw new Error(`Transaction finalized, but execution result could not yet be verified: ${hash}`)}
 export function resolveServiceId(rows: unknown[], serviceKey: string): string | number | undefined { for (const raw of rows) { try { const value = (typeof raw==='string'?JSON.parse(raw):raw) as {service_key?:string;id?:string|number;service_id?:string|number}; if (value?.service_key === serviceKey) return value.id ?? value.service_id; } catch {} } return undefined; }
 export function resolveActionId(rows: unknown[], actionKey: string): string | number | undefined { for (const raw of rows) { try { const value = (typeof raw==='string'?JSON.parse(raw):raw) as {action_key?:string;id?:string|number;action_id?:string|number;spec?:{action_key?:string}}; if ((value?.spec?.action_key??value?.action_key) === actionKey) return value.id ?? value.action_id; } catch {} } return undefined; }
@@ -44,7 +47,7 @@ export async function connectWallet(provider: Eip1193) {
 function appRpcEndpoint(){return typeof window==='undefined'?(process.env.GENLAYER_RPC_URL??'https://studio.genlayer.com/api'):`${window.location.origin}/api/genlayer-rpc`;}
 const termsRailStudionet={...studionet,rpcUrls:{...studionet.rpcUrls,default:{...studionet.rpcUrls.default,http:[appRpcEndpoint()]}}};
 export function clientFor(address: `0x${string}`, provider: Eip1193) { return createClient({ chain: termsRailStudionet, account: address, provider }); }
-export type TransactionPhase='SUBMITTING'|'SUBMITTED'|'WAITING_FOR_FINALIZATION'|'FINALIZED'|'VERIFYING_EXECUTION'|'SYNCING_CANONICAL_STATE'|'CANONICAL_STATE_FOUND'|'SUCCESS'|'RPC_RETRYING'|'VERIFICATION_DELAYED';
+export type TransactionPhase='SUBMITTING'|'SUBMITTED'|'WAITING_FOR_FINALIZATION'|'FINALIZED'|'VERIFYING_EXECUTION'|'EXECUTION_VERIFIED'|'SYNCING_CANONICAL_STATE'|'CANONICAL_STATE_FOUND'|'SUCCESS'|'RPC_RETRYING'|'VERIFICATION_DELAYED';
 export type LifecycleEvent={phase:TransactionPhase;hash?:string;attempt?:number;canonicalState?:unknown};
 export async function waitForCanonicalState<T>({read,predicate,onRetry,maxDurationMs=300000}:{read:()=>Promise<T>;predicate:(value:T)=>boolean;onRetry?:(attempt:number)=>void;maxDurationMs?:number}):Promise<T>{const started=Date.now();let attempt=0;let last:T|undefined;while(Date.now()-started<maxDurationMs){try{last=await read();if(predicate(last))return last;}catch(error){if(Date.now()-started>=maxDurationMs)throw error;}attempt++;onRetry?.(attempt);const delay=attempt<10?1000:attempt<20?2000:4000;await new Promise(resolve=>setTimeout(resolve,delay));}if(last!==undefined)throw new Error('Canonical state synchronization is still in progress.');throw new Error('Canonical state synchronization timed out.');}
 export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[], readback: () => Promise<T>, expected: (value: T) => boolean, onPhase?: (event:LifecycleEvent)=>void, onCanonical?: (state:T)=>void, value: bigint = 0n) {
@@ -57,15 +60,18 @@ export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193,
   if (!receipt) throw new Error('Transaction did not finalize');
   onPhase?.({phase:'FINALIZED',hash});
   onPhase?.({phase:'VERIFYING_EXECUTION',hash});
+  // Verify GenVM before attempting canonical synchronization. A failed
+  // execution cannot produce the expected state, so surfacing it first avoids
+  // hiding the real error behind a multi-minute readback timeout.
+  const execution=await waitForExecutionResult(client,hash,receipt);
+  assertSuccessfulExecution(execution);
+  onPhase?.({phase:'EXECUTION_VERIFIED',hash});
   onPhase?.({phase:'SYNCING_CANONICAL_STATE',hash});
-  const executionPromise=waitForExecutionResult(client,hash,receipt);
-  const statePromise=waitForCanonicalState({read:readback,predicate:expected,onRetry:attempt=>onPhase?.({phase:'SYNCING_CANONICAL_STATE',hash,attempt})});
-  statePromise.then(canonicalState=>{onPhase?.({phase:'CANONICAL_STATE_FOUND',hash,canonicalState});onCanonical?.(canonicalState)}).catch(()=>undefined);
-  const [execution,state]=await Promise.allSettled([executionPromise,statePromise]);
-  if(state.status==='rejected') throw state.reason;
-  if(execution.status==='fulfilled') { assertSuccessfulExecution(execution.value); onPhase?.({phase:'SUCCESS',hash}); }
-  else { onPhase?.({phase:'VERIFICATION_DELAYED',hash}); throw new Error(`Canonical state was found, but transaction execution could not be verified: ${hash}`); }
-  return { hash, receipt, state: state.value };
+  const state=await waitForCanonicalState({read:readback,predicate:expected,onRetry:attempt=>onPhase?.({phase:'SYNCING_CANONICAL_STATE',hash,attempt})});
+  onPhase?.({phase:'CANONICAL_STATE_FOUND',hash,canonicalState:state});
+  onCanonical?.(state);
+  onPhase?.({phase:'SUCCESS',hash});
+  return { hash, receipt, state };
 }
 export async function readContract<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[] = []) { return clientFor(address, provider).readContract({ address: requireContract(), functionName, args: args as never[] }) as Promise<T>; }
 export function genToWei(value: string): bigint { const normalized=value.trim(); if(!/^\d+(?:\.\d{1,18})?$/.test(normalized)) throw new Error('Enter a valid GEN amount.'); const [whole,fraction='']=normalized.split('.'); return BigInt(whole)*10n**18n+BigInt((fraction+'0'.repeat(18)).slice(0,18)); }
