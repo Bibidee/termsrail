@@ -1,9 +1,5 @@
 # TermsRail Handoff
 
-## Pending escrow correction (not deployed)
-
-The current working tree contains an escrow safety correction that is intentionally separate from the production deployment below. It has not changed or redeployed the live contract. Pending source SHA-256: `1A6FC43EECA117CE5A4B7089C53F76C8602217D03492CF2CEEF74F0CFF2E9753`. Before promotion, run the full Direct Mode suite, GenVM validation, frontend checks, hosted CI on the exact commit, and a fresh Studionet deployment. The corrected source adds an immutable funding snapshot, escrow deadlines independent of policy-authorization expiry, deterministic settlement/recovery after later policy changes, bounded dispute response/adjudication, and operation-specific canonical readbacks. The production address and records below remain authoritative until that cutover; no records are migrated automatically.
-
 ## Previous production release (v3 custody-enabled)
 
 - Frontend release commit: see `git log -1` (documentation intentionally avoids embedding a self-invalidating HEAD).
@@ -13,7 +9,7 @@ The current working tree contains an escrow safety correction that is intentiona
 - Deployed contract source SHA-256: `AFAAC5B2ED46F080C28858CC324A3B0E0B1949BF50D1E599B5A8FBB58BF22E85`
 - Deployment receipt: FINALIZED, GenVM SUCCESS, consensus Accepted.
 
-## Current correction deployment (production)
+## Previous correction deployment (retained)
 
 - Network: Studionet, chain 61999
 - Contract: `0x3D03382e2BEc45c34a67b00A82329F576A32B826`
@@ -26,6 +22,16 @@ The current working tree contains an escrow safety correction that is intentiona
 - Snapshot tx `0xd7f9fba92a02b4c6ab980acb4fac59ab60c4c6559226a890fdc29a1d29466464` ended `UNDETERMINED` after four rounds. The copied demo service therefore remains `NEEDS_SNAPSHOT` (policy version 0); do not treat it as an active authorization basis. Retry only with valid source evidence and accepted consensus.
 - Production build and aliasing succeeded after `.vercelignore` excluded local test/cache artifacts. Read-only verification returned HTTP 200 for the production home and `/escrow`, and `/api/version` reported production environment. The live escrow page now explains the creation/funding prerequisites and the missing accepted snapshot.
 
+## Current escrow correction deployment (production)
+
+- Network: Studionet, chain 61999
+- Contract: `0x744102f8f1C89a7568c135f3cbB650f6995e1599`
+- Deployment transaction: `0x8c9f87d938a89d0a4d8067d746c045b25d5f65ff36a7aaf73ff64df2dd9a34ba`
+- Deployer: `0x2cd419603eBa593074653930Ddc4073d4FD8fc60` (`fresh-bob`)
+- Receipt: FINALIZED, GenVM SUCCESS, consensus `MAJORITY_AGREE`
+- Source SHA-256: `1A6FC43EECA117CE5A4B7089C53F76C8602217D03492CF2CEEF74F0CFF2E9753`
+- Migration: previous registries remain deployed and untouched; no records or custody were migrated.
+
 ## Accepted v1 deployment (untouched)
 
 - Contract: `0x1de664E55F92BAcda496afBCfFA1b9b0Cf0a8457`
@@ -35,8 +41,8 @@ The current working tree contains an escrow safety correction that is intentiona
 ## Verification
 
 - Direct Mode: 31 passed for the deployed contract source
-- GenVM lint: static contract checks passed; SDK validation could not run in the current Windows environment because shared-cache access was denied
-- Frontend tests: 29 passed
+- GenVM lint: static checks and SDK validation passed after rebuilding the local SDK cache
+- Frontend tests: 31 passed
 - Typecheck: PASS
 - ESLint: 0 errors, 0 warnings
 - Production build: PASS
@@ -50,8 +56,8 @@ The current working tree contains an escrow safety correction that is intentiona
 - Dispute evidence is append-only and records `submission_id`, wallet, deterministic party role, statement, references and timestamp. Payer and recipient evidence are both included in adjudication.
 - Each escrow now carries one canonical settlement outcome for its current cycle. Historical verdicts cannot authorize opposing destinations. A finalized RELEASE always transfers to the recipient; a finalized REFUND always transfers to the payer; either relevant party may trigger an already-authorized outcome, and a second settlement is rejected.
 - Optional plan steps remain in receipts but do not block a plan; required steps continue to gate it. Policy change, plan hash, source/policy version and authorization identity checks remain mandatory.
-- Local correction validation: 35 Direct Mode tests and 31 frontend tests pass; typecheck, ESLint and build pass in the current working tree. GenVM static lint passes, but SDK validation is blocked by the Windows shared-cache permission error documented above. This correction has not been hosted, deployed, or promoted as production.
-- The production contract SHA-256 remains `0DB6BAB48A493AD0B74630191185DC08C0EC6330C791C215DA41773EBCD7CC85`; the pending working-tree correction has a different source hash and requires a separately authorized deployment.
+- Final correction validation: 35 Direct Mode tests and 31 frontend tests pass; typecheck, ESLint and build pass. GenVM static and SDK validation pass. Hosted CI run `36598439817` passed on the exact release commit. The corrected contract is deployed at the current production address above.
+- Corrected contract source SHA-256: `1A6FC43EECA117CE5A4B7089C53F76C8602217D03492CF2CEEF74F0CFF2E9753`.
 
 ## v3 custody checkpoint
 

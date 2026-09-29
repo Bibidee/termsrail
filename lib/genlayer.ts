@@ -3,7 +3,7 @@ import { studionet } from 'genlayer-js/chains';
 import { ExecutionResult, executionResultNumberToName } from 'genlayer-js/types';
 
 export const STUDIONET_CHAIN_ID = 61999;
-export const FROZEN_TERMSRAIL_CONTRACT = '0x3D03382e2BEc45c34a67b00A82329F576A32B826' as const;
+export const FROZEN_TERMSRAIL_CONTRACT = '0x744102f8f1C89a7568c135f3cbB650f6995e1599' as const;
 export const PREVIOUS_V3_TERMSRAIL_CONTRACT = '0x1Bdd534a9db2519F130462ea8666B25cB5764C4b' as const;
 export const ACCEPTED_V2_LOGICAL_CONTRACT = '0xcbC2eD344cb21dB2Dc0E7a4C22C67BF350F037dF' as const;
 export const ACCEPTED_V1_CONTRACT = '0x1de664E55F92BAcda496afBCfFA1b9b0Cf0a8457' as const;

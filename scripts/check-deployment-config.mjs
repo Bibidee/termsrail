@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs';
 
-const canonical = '0x3D03382e2BEc45c34a67b00A82329F576A32B826';
+const canonical = '0x744102f8f1C89a7568c135f3cbB650f6995e1599';
 const env = readFileSync('.env.example', 'utf8').match(/^NEXT_PUBLIC_CONTRACT_ADDRESS=(.*)$/m)?.[1]?.trim();
 const source = readFileSync('lib/genlayer.ts', 'utf8').match(/FROZEN_TERMSRAIL_CONTRACT\s*=\s*'([^']+)'/)?.[1];
 const docs = ['README.md', 'HANDOFF.md'].map((file) => readFileSync(file, 'utf8'));
