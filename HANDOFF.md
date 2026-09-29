@@ -46,7 +46,7 @@
 - Typecheck: PASS
 - ESLint: 0 errors, 0 warnings
 - Production build: PASS
-- Custody recovery: `resolve_dispute_choice(did, RELEASE|REFUND)` provides an explicit bounded resolution when dispute consensus returns `OTHER`.
+- Custody recovery: when dispute consensus returns `OTHER`, the payer proposes `RELEASE` or `REFUND` with `resolve_dispute_choice`; the recipient must accept the identical bounded choice with `accept_dispute_choice` before custody moves.
 - Exact-head CI: PASS (see GitHub Actions history for the release commit)
 
 ## Milestone adjudication correction round
@@ -54,7 +54,7 @@
 - The accepted V1 boundary remains `510e0e2fae`; the custody milestone and this correction round are separate work.
 - Completion adjudication preserves the submitted manifest, fetches bounded evidence, records explicit unavailable/mismatch/oversized states, and requires meaningful leader/validator semantic agreement rather than enum-only validation.
 - Dispute evidence is append-only and records `submission_id`, wallet, deterministic party role, statement, references and timestamp. Payer and recipient evidence are both included in adjudication.
-- Each escrow now carries one canonical settlement outcome for its current cycle. Historical verdicts cannot authorize opposing destinations. A finalized RELEASE always transfers to the recipient; a finalized REFUND always transfers to the payer; either relevant party may trigger an already-authorized outcome, and a second settlement is rejected.
+- Each escrow now carries one canonical settlement outcome for its current cycle. Historical verdicts cannot authorize opposing destinations. A finalized RELEASE always transfers to the recipient; a finalized REFUND always transfers to the payer; an `OTHER` recovery requires an explicit payer proposal plus matching recipient acceptance, and a second settlement is rejected.
 - Optional plan steps remain in receipts but do not block a plan; required steps continue to gate it. Policy change, plan hash, source/policy version and authorization identity checks remain mandatory.
 - Final correction validation: 35 Direct Mode tests and 31 frontend tests pass; typecheck, ESLint and build pass. GenVM static and SDK validation pass. Hosted CI run `36598439817` passed on the exact release commit. The corrected contract is deployed at the current production address above.
 - Corrected contract source SHA-256: `1A6FC43EECA117CE5A4B7089C53F76C8602217D03492CF2CEEF74F0CFF2E9753`.

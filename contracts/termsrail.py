@@ -141,6 +141,16 @@ class TermsRail(gl.Contract):
                 str(funding.get("payer"))==str(escrow.get("payer")) and
                 str(funding.get("recipient"))==str(escrow.get("recipient")))
 
+    def has_active_dispute(self,eid):
+        """Return true while an escrow has an unresolved dispute."""
+        for did in self.dispute_ids:
+            raw=self.disputes.get(did,"")
+            if not raw: continue
+            dispute=json.loads(raw)
+            if str(dispute.get("escrow_id"))==str(eid) and not str(dispute.get("status","" )).startswith("RESOLVED_"):
+                return True
+        return False
+
     def evidence_state(self,observed):
         if not observed:return "UNAVAILABLE"
         if any(x.get("state")=="VERIFIED" for x in observed): return "SUFFICIENT" if all(x.get("state")=="VERIFIED" for x in observed) else "PARTIAL"
@@ -441,6 +451,7 @@ class TermsRail(gl.Contract):
         if not raw: raise gl.vm.UserError("escrow not found")
         escrow=json.loads(raw)
         if now()<=escrow["deadline"] or escrow["status"] in ("RELEASED","REFUNDED","EXPIRED") or escrow.get("settlement_outcome")=="RELEASE": raise gl.vm.UserError("escrow not expired")
+        if self.has_active_dispute(eid): raise gl.vm.UserError("resolve active dispute before expiry")
         escrow["status"]="EXPIRED"; self.escrows[str(eid)]=json.dumps(escrow,sort_keys=True); self.escrow_histories[str(eid)].append(self.escrows[str(eid)]); return "EXPIRED"
 
     @gl.public.write
@@ -632,11 +643,12 @@ class TermsRail(gl.Contract):
 
     @gl.public.write
     def resolve_dispute_choice(self,did:str,outcome:str)->str:
-        """Resolve an OTHER dispute only after an explicit payer choice.
+        """Propose a bounded outcome for an OTHER dispute.
 
         Consensus may return OTHER when the evidence does not support a
-        bounded RELEASE/REFUND verdict.  The payer can then choose one of the
-        two bounded settlement outcomes; no arbitrary outcome is inferred.
+        bounded RELEASE/REFUND verdict.  The payer may propose one of the two
+        bounded settlement outcomes, but custody is not released or refunded
+        until the recipient explicitly accepts the same choice.
         """
         raw=self.disputes.get(str(did),"")
         if not raw: raise gl.vm.UserError("dispute not found")
@@ -646,12 +658,29 @@ class TermsRail(gl.Contract):
         if escrow.get("status")!="DISPUTED": raise gl.vm.UserError("escrow is not awaiting this dispute")
         if outcome not in ("RELEASE","REFUND"): raise gl.vm.UserError("invalid dispute choice")
         if escrow.get("custody")!="HELD" or not escrow.get("funding_snapshot") or self.balance < u256(escrow["amount"]): raise gl.vm.UserError("escrow custody unavailable")
-        self.canonical_settlement_outcome(escrow,outcome,"EXPLICIT_OTHER_CHOICE")
+        dispute["resolution_choice"]=outcome
+        dispute["resolution_proposed_by"]=str(gl.message.sender_address)
+        dispute["status"]="AWAITING_COUNTERPARTY"
+        encoded=json.dumps(dispute,sort_keys=True); self.disputes[str(did)]=encoded; self.dispute_histories[str(did)].append(encoded)
+        return dispute["status"]
+
+    @gl.public.write
+    def accept_dispute_choice(self,did:str,outcome:str)->str:
+        """Accept the payer's bounded OTHER-dispute recovery proposal."""
+        raw=self.disputes.get(str(did),"")
+        if not raw: raise gl.vm.UserError("dispute not found")
+        dispute=json.loads(raw); escrow_raw=self.escrows.get(dispute["escrow_id"],""); escrow=json.loads(escrow_raw) if escrow_raw else {}
+        if str(gl.message.sender_address)!=escrow.get("recipient"): raise gl.vm.UserError("recipient acceptance required")
+        if dispute.get("status")!="AWAITING_COUNTERPARTY" or dispute.get("adjudication_verdict")!="OTHER": raise gl.vm.UserError("dispute choice not awaiting acceptance")
+        if dispute.get("resolution_choice")!=outcome or outcome not in ("RELEASE","REFUND"): raise gl.vm.UserError("dispute choice mismatch")
+        if escrow.get("status")!="DISPUTED": raise gl.vm.UserError("escrow is not awaiting this dispute")
+        if escrow.get("custody")!="HELD" or not escrow.get("funding_snapshot") or self.balance < u256(escrow["amount"]): raise gl.vm.UserError("escrow custody unavailable")
+        self.canonical_settlement_outcome(escrow,outcome,"MUTUAL_OTHER_CHOICE")
         if outcome=="RELEASE":
             escrow.update({"status":"RELEASED","custody":"TRANSFER_QUEUED","settlement_status":"RELEASE_TO_RECIPIENT"})
         else:
             escrow.update({"status":"REFUNDED","custody":"TRANSFER_QUEUED","settlement_status":"REFUND_TO_PAYER"})
-        self.escrows[dispute["escrow_id"]]=json.dumps(escrow,sort_keys=True); self.escrow_histories[dispute["escrow_id"]].append(self.escrows[dispute["escrow_id"]]); dispute["resolution_choice"]=outcome; dispute["status"]="RESOLVED_RELEASE" if outcome=="RELEASE" else "RESOLVED_REFUND"; encoded=json.dumps(dispute,sort_keys=True); self.disputes[str(did)]=encoded; self.dispute_histories[str(did)].append(encoded)
+        self.escrows[dispute["escrow_id"]]=json.dumps(escrow,sort_keys=True); self.escrow_histories[dispute["escrow_id"]].append(self.escrows[dispute["escrow_id"]]); dispute["status"]="RESOLVED_RELEASE" if outcome=="RELEASE" else "RESOLVED_REFUND"; encoded=json.dumps(dispute,sort_keys=True); self.disputes[str(did)]=encoded; self.dispute_histories[str(did)].append(encoded)
         destination=escrow["recipient"] if outcome=="RELEASE" else escrow["payer"]
         _Recipient(Address(destination)).emit_transfer(value=u256(escrow["amount"])); return dispute["status"]
     @gl.public.view

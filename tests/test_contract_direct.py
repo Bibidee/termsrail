@@ -329,12 +329,47 @@ def test_other_dispute_requires_explicit_bounded_choice(direct_deploy, direct_vm
     direct_vm.mock_llm(r"Classify this bounded dispute outcome",json.dumps({"verdict":"OTHER"}))
     with direct_vm.expect_revert("dispute response window open"): c.adjudicate_dispute(did)
     direct_vm.warp("2100-01-01T00:00:00Z")
+    with direct_vm.expect_revert("resolve active dispute before expiry"): c.expire_escrow(eid)
     assert c.adjudicate_dispute(did)=="OTHER"
     with direct_vm.expect_revert("invalid dispute choice"):
         c.resolve_dispute_choice(did,"OTHER")
-    assert c.resolve_dispute_choice(did,"REFUND")=="RESOLVED_REFUND"
+    assert c.resolve_dispute_choice(did,"REFUND")=="AWAITING_COUNTERPARTY"
+    assert '"settlement_status": "NONE"' in c.get_escrow(eid)
+    payer=direct_vm.sender; direct_vm.sender=bytes.fromhex("00"*19+"02")
+    try: assert c.accept_dispute_choice(did,"REFUND")=="RESOLVED_REFUND"
+    finally: direct_vm.sender=payer
     assert '"settlement_status": "REFUND_TO_PAYER"' in c.get_escrow(eid)
     with direct_vm.expect_revert("explicit dispute choice unavailable"): c.resolve_dispute_choice(did,"RELEASE")
+
+def test_active_dispute_expiry_cannot_strand_release_or_refund(direct_deploy, direct_vm):
+    response={d:"ALLOWED" for d in DIMENSIONS}
+    direct_vm.mock_web(r"expiry-dispute",{"status":200,"body":"allowed terms"})
+    direct_vm.mock_web(r"evidence\.example\.com/counter",{"status":200,"body":"counter evidence"})
+    direct_vm.mock_web(r"evidence\.example\.com/additional",{"status":200,"body":"additional evidence"})
+    direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response))
+    c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12")
+    sid=c.register_service("expiry-dispute","Expiry Dispute","expiry-dispute.example.com","https://expiry-dispute.example.com/p","TERMS_OF_SERVICE",86400)
+    c.build_policy_snapshot(sid)
+    aid=c.register_action(sid,"expiry-dispute-action","OTHER","work",fields())
+    c.authorize_action(aid)
+    pid=c.create_plan("Expiry Dispute","deadline recovery",json.dumps([{ "service_id":sid,"action_id":aid}]))
+    c.authorize_plan(pid)
+    deadline=int(time.time())+60
+    first=c.create_escrow(pid,"0x0000000000000000000000000000000000000002",1,deadline)
+    second=c.create_escrow(pid,"0x0000000000000000000000000000000000000002",1,deadline)
+    fund_escrow(c,direct_vm,first); fund_escrow(c,direct_vm,second)
+    d1=c.open_dispute(first,"release after deadline"); d2=c.open_dispute(second,"refund after deadline")
+    for did in (d1,d2):
+        assert c.submit_dispute_evidence(did,"payer evidence",'["https://evidence.example.com/counter"]','["c7aeb959337e7eac027e9a9d6c58992ef4683e13c10b90cdebffc16f97b46a1f"]')=="EVIDENCE"
+        payer=direct_vm.sender; direct_vm.sender=bytes.fromhex("00"*19+"02")
+        try: assert c.submit_dispute_evidence(did,"recipient evidence",'["https://evidence.example.com/additional"]','["c1516d1efe74a7af9814f00937cacb3bb0076fa2ec9f0cb0c0d8c4e4e1d34c54"]')=="EVIDENCE"
+        finally: direct_vm.sender=payer
+    direct_vm.warp("2100-01-01T00:00:00Z")
+    with direct_vm.expect_revert("resolve active dispute before expiry"): c.expire_escrow(first)
+    with direct_vm.expect_revert("resolve active dispute before expiry"): c.expire_escrow(second)
+    direct_vm.mock_llm(r"Classify this bounded dispute outcome",json.dumps({"verdict":"RELEASE"})); assert c.adjudicate_dispute(d1)=="RELEASE"; assert c.resolve_dispute(d1)=="RESOLVED_RELEASE"
+    direct_vm.clear_mocks(); direct_vm.mock_web(r"evidence\.example\.com/counter",{"status":200,"body":"counter evidence"}); direct_vm.mock_web(r"evidence\.example\.com/additional",{"status":200,"body":"additional evidence"}); direct_vm.mock_llm(r"Classify this bounded dispute outcome",json.dumps({"verdict":"REFUND"})); assert c.adjudicate_dispute(d2)=="REFUND"; assert c.resolve_dispute(d2)=="RESOLVED_REFUND"
+    assert json.loads(c.get_escrow(first))["status"]=="RELEASED" and json.loads(c.get_escrow(second))["status"]=="REFUNDED"
 
 def test_receipts_supersede_and_escrow_expiry_guards(direct_deploy, direct_vm):
     response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"receipt-expiry",{"status":200,"body":"allowed terms"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response)); c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("receipt-expiry","Receipt","receipt-expiry.example.com","https://receipt-expiry.example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); aid=c.register_action(sid,"receipt-action","OTHER","work",fields()); c.authorize_action(aid); pid=c.create_plan("Receipt","history",json.dumps([{"service_id":sid,"action_id":aid}])); c.authorize_plan(pid); first=json.loads(c.get_plan_receipts(pid,0,10)[0]); c.reassess_action(aid); c.authorize_plan(pid); receipts=c.get_plan_receipts(pid,0,10); assert len(receipts)==2 and c.is_receipt_valid(first["receipt_id"]) is False

@@ -25,7 +25,7 @@ FUNDED/LOCKED
   → RELEASED or REFUNDED
 ```
 
-`OTHER`, insufficient or unverifiable evidence never authorizes a destination. It requires the explicit bounded recovery path. A caller may trigger an already-authorized outcome, but cannot choose its destination. Policy-bound plan authorization remains required at settlement time.
+`OTHER`, insufficient or unverifiable evidence never authorizes a destination. It requires a bounded two-party recovery handshake: the payer proposes RELEASE or REFUND and the recipient must accept the identical choice before custody moves. New execution requires a current plan authorization; settlement of already-held custody is governed by the immutable funding snapshot and canonical settlement outcome.
 
 ### Actions
 Valid structured action, duplicate action key, invalid enums, bounds, missing service.
