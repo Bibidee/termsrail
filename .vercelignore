@@ -1,7 +1,7 @@
-.pytest_cache
-__pycache__
-*.py[cod]
-artifacts
-audit-artifacts
-.uv-audit-cache
-.audit_site
+.pytest_cache/
+__pycache__/
+node_modules/
+.next/
+artifacts/
+audit-artifacts/
+.uv-audit-cache/
