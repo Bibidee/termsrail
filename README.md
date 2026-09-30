@@ -1,13 +1,13 @@
 # TERMSRAIL
 
 Live frontend: https://termsrail.vercel.app  
-Latest reviewed contract: `0x9Ce1b913C40e4F766ed816F05911D341Dd00aa1E` (Studionet, chain 61999). Deployment transaction: `0xbaad39ddadca399759ef27bc15a9c53fee713f50361620935a18147e9cdc5240`. Source SHA-256: `EAAD08F00E36FD8FA6EFA3956259FC285ADC5CDA9A660689F6B6A761A7D2ADAA`. This is a fresh deployment; prior service, action, plan, receipt, escrow and custody records were not migrated.
+Latest reviewed contract: `0xc515F0742D0d94cA3EE7d50702C0669c2B03EC0b` (Studionet, chain 61999). Deployment transaction: `0x880d4b609cf0a4bd234b47134a4047c09c7d1f7929cddc05a64bfb9acecaf537`. Source SHA-256: `11089B067E86575558EC3F59775DBA096DE3D691226CBF497A482152648D9C20`. This is a fresh deployment; prior service, action, plan, receipt, escrow and custody records were not migrated.
 
 TermsRail is a Next.js dApp and GenLayer Intelligent Contract for consensus-backed policy execution gates. Policy snapshot extraction and material policy-change detection use semantic consensus; structured action authorization is deterministic derivation over the accepted snapshot.
 
 ## Escrow correction status
 
-The current custody-enabled contract is deployed at `0x9Ce1b913C40e4F766ed816F05911D341Dd00aa1E`. It adds immutable funding snapshots, escrow deadlines independent of policy-authorization expiry, bounded dispute response windows, method-specific canonical readbacks, strict finalized-execution sequencing, and a two-party `OTHER` dispute recovery handshake. The previous custody deployment `0x744102f8f1C89a7568c135f3cbB650f6995e1599` and earlier registries remain deployed and untouched; records and custody are not migrated automatically.
+The current custody-enabled contract is deployed at `0xc515F0742D0d94cA3EE7d50702C0669c2B03EC0b`. It adds immutable funding snapshots, escrow deadlines independent of policy-authorization expiry, bounded dispute response windows, method-specific canonical readbacks, strict finalized-execution sequencing, and a two-party `OTHER` dispute recovery handshake with a 15-minute proposal deadline and deterministic timeout refund to the payer. The previous custody deployment `0x9Ce1b913C40e4F766ed816F05911D341Dd00aa1E` and earlier registries remain deployed and untouched; records and custody are not migrated automatically.
 
 ## Milestone correction state machine
 

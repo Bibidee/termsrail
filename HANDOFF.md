@@ -6,16 +6,17 @@
 - Frontend: https://termsrail.vercel.app
 - Production Vercel deployment: the current main release is deployed to the production alias and must remain Ready; exact deployment metadata is recorded in the final release report.
 - Public production build check: `/api/version` must report the release HEAD with `environment` set to `production`.
-- Production bundle uses `NEXT_PUBLIC_CONTRACT_ADDRESS=0x9Ce1b913C40e4F766ed816F05911D341Dd00aa1E`.
-- Current audited Studionet contract: `0x9Ce1b913C40e4F766ed816F05911D341Dd00aa1E`.
-- Deployment transaction: `0xbaad39ddadca399759ef27bc15a9c53fee713f50361620935a18147e9cdc5240`.
-- Deployer: `0x7C65cE913F5665c11f1219048112C84CD6cb2a4B` (`fresh-alice`).
+- Production bundle uses `NEXT_PUBLIC_CONTRACT_ADDRESS=0xc515F0742D0d94cA3EE7d50702C0669c2B03EC0b`.
+- Current audited Studionet contract: `0xc515F0742D0d94cA3EE7d50702C0669c2B03EC0b`.
+- Deployment transaction: `0x880d4b609cf0a4bd234b47134a4047c09c7d1f7929cddc05a64bfb9acecaf537`.
+- Deployer: `0x865e118a3be4FA0760775565fCd31be156e1e3d7` (`signalbond-challenger-unlocked`).
 - Contract receipt: FINALIZED, GenVM SUCCESS, consensus `MAJORITY_AGREE`.
-- Deployed contract source SHA-256: `EAAD08F00E36FD8FA6EFA3956259FC285ADC5CDA9A660689F6B6A761A7D2ADAA`.
+- Deployed contract source SHA-256: `11089B067E86575558EC3F59775DBA096DE3D691226CBF497A482152648D9C20`.
 - No records or custody were migrated from prior deployments.
 - Hosted CI and final frontend deployment are release gates; the exact successful run and production deployment are recorded with the final release report rather than duplicated as mutable values here.
-- Current live non-financial proofs: service `0` registration `0x9bebb6ca36ff2ba34aa21006e8667cabeeba2f9b0da4ecf688507d3e1f935a45`, accepted snapshot `0x3093f0561419e55313d05ab6ee067e509a7dcaf4110532c898531ded8931138a`, action `0` registration `0xdb4d0cb1560f92342e6c1af8ec7c44af0eb1d243bf3b3ca4b0d212cdb8aef589`, action `1` registration `0x73b30972a64106625e1574d9ce71cf8496345c26365172f755ab0c83d6264f02`, and action `1` authorization `0x695d6172854367e83d216a70982381675725520d09b259727ac4c240cdb0ba9e`.
-- Plan `0` is now canonically authorized with an `ALLOWED` gate and receipt; live proofs stop before escrow creation/funding because a distinct second-wallet recipient has not been confirmed, so no GEN was moved by this audit pass. The escrow detail UI may still show `PENDING` completion-evidence/adjudication fields on a released escrow; those fields are workflow metadata and do not mean custody remains locked when status is `RELEASED` and the custody balance is zero.
+- Current live non-financial proofs on the prior registry remain historical and are not presented as records on this fresh deployment.
+- Fresh live refund proof on escrow `1`: create `0x2fe1e7508643f953d6b57f4e53aaccf2018626bad2fe4a94f39d47f52e1d0a43`, fund `0x2f67aa4b6d2121855eab45cd4d04292b9f28f8ecf9f1bca13ae6f323b8837a3d`, lock `0x4fe70b955d280a427060e1777775c193cc97c5477e77f06775bce2fb9b9b9066`, completion evidence `0x005912910363337be7f78fff433cac066f5e47ccece8a3e2eda87be48e916599`, completion adjudication `0x2613e9cb8eb7e2f35f20a09750235ac7b1e43c472cb7667efcb5453f16f3aa28`, followed by a two-party `OTHER` refund proposal/acceptance. Final canonical state was `RESOLVED_REFUND`, `REFUNDED`, `TRANSFER_QUEUED`, `REFUND_TO_PAYER`, with custody balance `0`.
+- A live release-to-recipient proof on this new deployment is still required before the release milestone can be marked complete. The escrow detail UI may show `NOT APPLICABLE` for completion fields when no completion workflow is used; terminal custody and settlement state remain authoritative.
 
 ## Previous production release (v3 custody-enabled)
 
@@ -52,11 +53,11 @@
 ## Current audited deployment (historical duplicate of the release above)
 
 - Network: Studionet, chain 61999
-- Contract: `0x9Ce1b913C40e4F766ed816F05911D341Dd00aa1E`
-- Deployment transaction: `0xbaad39ddadca399759ef27bc15a9c53fee713f50361620935a18147e9cdc5240`
-- Deployer: `0x7C65cE913F5665c11f1219048112C84CD6cb2a4B` (`fresh-alice`)
+- Contract: `0xc515F0742D0d94cA3EE7d50702C0669c2B03EC0b`
+- Deployment transaction: `0x880d4b609cf0a4bd234b47134a4047c09c7d1f7929cddc05a64bfb9acecaf537`
+- Deployer: `0x865e118a3be4FA0760775565fCd31be156e1e3d7` (`signalbond-challenger-unlocked`)
 - Receipt: FINALIZED, GenVM SUCCESS, consensus `MAJORITY_AGREE`
-- Source SHA-256: `EAAD08F00E36FD8FA6EFA3956259FC285ADC5CDA9A660689F6B6A761A7D2ADAA`
+- Source SHA-256: `11089B067E86575558EC3F59775DBA096DE3D691226CBF497A482152648D9C20`
 - Migration: the prior custody deployment remains untouched; the new registry starts empty.
 
 ## Accepted v1 deployment (untouched)
@@ -67,14 +68,14 @@
 
 ## Verification for the current audited release
 
-- Direct Mode: 36 passed for the deployed contract source
+- Direct Mode: 39 passed for the deployed contract source
 - GenVM lint: `✓ Lint passed (3 checks)`
-- Frontend tests: 34 passed (5 files)
+- Frontend tests: 35 passed (5 files)
 - Typecheck: PASS
 - ESLint: 0 errors, 0 warnings
 - Production build: PASS
-- Custody recovery: when dispute consensus returns `OTHER`, the payer proposes `RELEASE` or `REFUND` with `resolve_dispute_choice`; the recipient must accept the identical bounded choice with `accept_dispute_choice` before custody moves.
-- Exact-head CI: PASS, run `36625413972`, https://github.com/Bibidee/termsrail/actions/runs/36625413972
+- Custody recovery: when dispute consensus returns `OTHER`, the payer proposes `RELEASE` or `REFUND` with `resolve_dispute_choice`; the recipient must accept the identical bounded choice with `accept_dispute_choice` before custody moves. The proposal is stored with a 900-second deadline; if the recipient does not respond, anyone may call `resolve_expired_dispute_proposal` and custody deterministically refunds to the payer. The fallback never releases to a silent recipient and cannot be replayed after settlement.
+- Exact-head CI: PASS, run `36647477901`, https://github.com/Bibidee/termsrail/actions/runs/36647477901 (HEAD `873e3b7aa1faaa812dbdb3668c56cad51e3783d3`)
 
 ## Milestone adjudication correction round
 
@@ -84,7 +85,7 @@
 - Each escrow now carries one canonical settlement outcome for its current cycle. Historical verdicts cannot authorize opposing destinations. A finalized RELEASE always transfers to the recipient; a finalized REFUND always transfers to the payer; an `OTHER` recovery requires an explicit payer proposal plus matching recipient acceptance, and a second settlement is rejected.
 - Optional plan steps remain in receipts but do not block a plan; required steps continue to gate it. Policy change, plan hash, source/policy version and authorization identity checks remain mandatory.
 - Final correction validation: 36 Direct Mode tests and 34 frontend tests pass; typecheck, ESLint and build pass. GenVM static and SDK validation pass. Hosted CI run `36625413972` passed on exact HEAD `a9256af9baf3131cef09428617862059c8fb38b7`.
-- Audited contract source SHA-256: `EAAD08F00E36FD8FA6EFA3956259FC285ADC5CDA9A660689F6B6A761A7D2ADAA`.
+- Audited contract source SHA-256: `11089B067E86575558EC3F59775DBA096DE3D691226CBF497A482152648D9C20`.
 
 ## v3 custody checkpoint
 

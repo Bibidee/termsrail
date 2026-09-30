@@ -25,7 +25,7 @@ FUNDED/LOCKED
   → RELEASED or REFUNDED
 ```
 
-`OTHER`, insufficient or unverifiable evidence never authorizes a destination. It requires a bounded two-party recovery handshake: the payer proposes RELEASE or REFUND and the recipient must accept the identical choice before custody moves. New execution requires a current plan authorization; settlement of already-held custody is governed by the immutable funding snapshot and canonical settlement outcome.
+`OTHER`, insufficient or unverifiable evidence never authorizes a destination. It requires a bounded two-party recovery handshake: the payer proposes RELEASE or REFUND and the recipient must accept the identical choice before custody moves. The proposal deadline is persisted canonically for 900 seconds. If the recipient does not respond, `resolve_expired_dispute_proposal` deterministically refunds held custody to the payer; it cannot release to a silent recipient, replay after settlement, or overwrite a prior canonical outcome. New execution requires a current plan authorization; settlement of already-held custody is governed by the immutable funding snapshot and canonical settlement outcome.
 
 ### Actions
 Valid structured action, duplicate action key, invalid enums, bounds, missing service.
@@ -46,7 +46,10 @@ Different prose with same categorical result should converge; ALLOWED vs PROHIBI
 Hard caps and pagination.
 
 ## Frontend tests
-Provider missing, disconnected, wrong chain, switch chain, rejected tx, pending/finalised/readback mismatch, empty state, active/stale/conflict/change states and reassessment.
+Provider missing, disconnected, wrong chain, switch chain, rejected tx, pending/finalised/readback mismatch, empty state, active/stale/conflict/change states and reassessment. Escrow UX covers matching RELEASE/REFUND acceptance controls, canonical proposal deadline/status, timeout-refund availability and terminal-state labels.
+
+## Bounded `OTHER` recovery tests
+Direct Mode covers cooperative release, cooperative refund, wrong outcome and third-party/payer acceptance rejection, active and expired proposal replay prevention, timeout refund, double-settlement rejection, and policy/authorization staleness while custody is held. The current source run is 39 passed.
 
 ## Real Studionet lifecycle
 Required minimum:
