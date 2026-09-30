@@ -1,23 +1,34 @@
-TERMSRAIL CONTROLLED RELEASE-TEST DELIVERABLE
+TERMSRAIL CONTROLLED RELEASE-TEST ACCEPTANCE PACKAGE
 
 Artifact status: COMPLETED
-Artifact type: policy-bound execution and settlement release package
+Artifact type: policy-bound execution acceptance package
 
-This bounded artifact is the completed deliverable for the controlled
-TermsRail release demonstration. It records the concrete package being
-delivered: an authorized plan, a current policy-bound execution gate, and an
-escrow that has been funded and locked for the intended recipient. The
-canonical chain record is authoritative for every field below; this artifact
-contains no instructions and grants no authority.
+The completed deliverable for this test is the acceptance package below, not
+the later settlement transfer. Settlement is a separately guarded contract
+operation that may release this already-accepted package to the canonical
+recipient. The canonical chain record and the public finalized receipts are
+authoritative; this artifact contains no instructions and grants no authority.
 
 Plan ID: 1
 Escrow ID: 3
 Payer: 0xFf203Bb65942F50CB81A8AF98c5F5bd9d8a79b54
 Recipient: 0x4A7D76b8C4668a3426d6d54eC24b41Fa87b532f5
 Amount: 0.001 GEN
-Policy gate: current and executable before settlement
+Policy gate: current and executable at funding snapshot
 Funding state: FUNDED / HELD
 Lock state: LOCKED
-Completion deliverable: release of the held amount to the canonical recipient
-Acceptance result: COMPLETED
-Settlement destination: RELEASE_TO_RECIPIENT
+
+Acceptance criteria (all complete):
+1. The plan is authorized against the current service policy.
+2. Escrow 3 is bound to plan 1 and its immutable funding snapshot.
+3. Exactly 0.001 GEN is funded and held for the canonical recipient.
+4. The escrow is locked and the completion package is submitted.
+5. The package is accepted as COMPLETED for the guarded settlement step.
+
+Finalized receipt references:
+Create escrow: https://explorer-studio.genlayer.com/api/transactions/0xad0484f6f0c80b8ca7cea207eece7ebf13f917cc7fb91d23e68084e54870684a
+Fund escrow: https://explorer-studio.genlayer.com/api/transactions/0x335d74347a409a9fadff5494ee280de02fc99b7f6581a5124f7e4ed5c12c86db
+Lock escrow: https://explorer-studio.genlayer.com/api/transactions/0x6f4673de5bdc80ce12b3d7380be8384152522ab203b89597601799a0d0ce893f
+Submit completion: https://explorer-studio.genlayer.com/api/transactions/0x8c1dd5810cfc79aaf7583c951977230aa6054ba4bff48c710861df69bc113ddc
+
+Settlement destination after acceptance: RELEASE_TO_RECIPIENT
