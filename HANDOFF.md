@@ -4,7 +4,7 @@
 
 - Frontend source: see `git log -1` for the exact release HEAD (this document intentionally avoids a self-invalidating literal HEAD claim).
 - Frontend: https://termsrail.vercel.app
-- Production Vercel deployment: the frontend-only correction is Ready at `https://termsrail-gm58xv02l-bibidees-projects.vercel.app`, aliased to `https://termsrail.vercel.app`.
+- Production Vercel deployment: Ready at `https://termsrail-5om5sai3z-bibidees-projects.vercel.app`, aliased to `https://termsrail.vercel.app`.
 - Public production build check: the production alias serves the corrected contract target and the escrow release state; `/api/version` reports `environment: production` (the direct CLI deployment has no Git commit metadata).
 - Production bundle uses `NEXT_PUBLIC_CONTRACT_ADDRESS=0x6a1023185e64Ae635EC9474AaF1360E89A845541`.
 - Current audited Studionet contract: `0x6a1023185e64Ae635EC9474AaF1360E89A845541`.
@@ -35,7 +35,7 @@
 - Deployer: `0x2cd419603eBa593074653930Ddc4073d4FD8fc60` (`fresh-bob`)
 - Receipt: FINALIZED, GenVM SUCCESS, consensus `MAJORITY_AGREE`
 - Source SHA-256: `0DB6BAB48A493AD0B74630191185DC08C0EC6330C791C215DA41773EBCD7CC85`
-- Production frontend: `https://termsrail.vercel.app` (a fresh frontend deployment for this contract is required after exact-head CI). Production `NEXT_PUBLIC_CONTRACT_ADDRESS` must point to the current contract above; the previous deployment URL is historical.
+- Production frontend: `https://termsrail.vercel.app` (deployment `dpl_3x9CJExs2EpUYGMAGWawF6E9gQx8`, Ready). Production `NEXT_PUBLIC_CONTRACT_ADDRESS` points to the current contract above.
 - Migration: previous contracts retained unchanged. No service, action, plan, receipt, escrow or custody records were migrated; the new registry starts empty.
 - Snapshot tx `0xd7f9fba92a02b4c6ab980acb4fac59ab60c4c6559226a890fdc29a1d29466464` ended `UNDETERMINED` after four rounds. The copied demo service therefore remains `NEEDS_SNAPSHOT` (policy version 0); do not treat it as an active authorization basis. Retry only with valid source evidence and accepted consensus.
 - Production build and aliasing succeeded after `.vercelignore` excluded local test/cache artifacts. Read-only verification returned HTTP 200 for the production home and `/escrow`, and `/api/version` reported production environment. The live escrow page now explains the creation/funding prerequisites and the missing accepted snapshot.
@@ -68,7 +68,7 @@
 
 ## Verification for the current audited release
 
-- Direct Mode: 39 passed for the deployed contract source
+- Direct Mode/security: 43 passed for the deployed contract source
 - GenVM lint: `✓ Lint passed (3 checks)`
 - Frontend tests: 36 passed (6 files)
 - Typecheck: PASS
