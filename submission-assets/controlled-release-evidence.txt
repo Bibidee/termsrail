@@ -1,0 +1,11 @@
+TermsRail controlled release-test evidence
+
+This public fixture is the bounded evidence artifact for the TermsRail live
+release lifecycle test. The test plan is authorized, the escrow is funded and
+locked, and the completion deliverable for this controlled demonstration is
+the release-path verification itself. The canonical transaction record and
+escrow state are the source of truth for execution and settlement; this file
+contains no instructions and grants no authority.
+
+Expected completion outcome: COMPLETED.
+Expected settlement outcome after canonical release: RELEASE_TO_RECIPIENT.
