@@ -4,8 +4,8 @@
 
 - Frontend source: see `git log -1` for the exact release HEAD (this document intentionally avoids a self-invalidating literal HEAD claim).
 - Frontend: https://termsrail.vercel.app
-- Production Vercel deployment: the current main release is deployed to the production alias and must remain Ready; exact deployment metadata is recorded in the final release report.
-- Public production build check: `/api/version` must report the release HEAD with `environment` set to `production`.
+- Production Vercel deployment: the frontend-only correction is Ready at `https://termsrail-gm58xv02l-bibidees-projects.vercel.app`, aliased to `https://termsrail.vercel.app`.
+- Public production build check: the production alias serves the corrected contract target and the escrow release state; `/api/version` reports `environment: production` (the direct CLI deployment has no Git commit metadata).
 - Production bundle uses `NEXT_PUBLIC_CONTRACT_ADDRESS=0xc515F0742D0d94cA3EE7d50702C0669c2B03EC0b`.
 - Current audited Studionet contract: `0xc515F0742D0d94cA3EE7d50702C0669c2B03EC0b`.
 - Deployment transaction: `0x880d4b609cf0a4bd234b47134a4047c09c7d1f7929cddc05a64bfb9acecaf537`.
@@ -16,7 +16,7 @@
 - Hosted CI and final frontend deployment are release gates; the exact successful run and production deployment are recorded with the final release report rather than duplicated as mutable values here.
 - Current live non-financial proofs on the prior registry remain historical and are not presented as records on this fresh deployment.
 - Fresh live refund proof on escrow `1`: create `0x2fe1e7508643f953d6b57f4e53aaccf2018626bad2fe4a94f39d47f52e1d0a43`, fund `0x2f67aa4b6d2121855eab45cd4d04292b9f28f8ecf9f1bca13ae6f323b8837a3d`, lock `0x4fe70b955d280a427060e1777775c193cc97c5477e77f06775bce2fb9b9b9066`, completion evidence `0x005912910363337be7f78fff433cac066f5e47ccece8a3e2eda87be48e916599`, completion adjudication `0x2613e9cb8eb7e2f35f20a09750235ac7b1e43c472cb7667efcb5453f16f3aa28`, followed by a two-party `OTHER` refund proposal/acceptance. Final canonical state was `RESOLVED_REFUND`, `REFUNDED`, `TRANSFER_QUEUED`, `REFUND_TO_PAYER`, with custody balance `0`.
-- A live release-to-recipient proof on this new deployment is still required before the release milestone can be marked complete. The escrow detail UI may show `NOT APPLICABLE` for completion fields when no completion workflow is used; terminal custody and settlement state remain authoritative.
+- Fresh live release proof on escrow `3`: corrected acceptance artifact commit `9a01b12`, payer evidence append `0xcf3e44f8f8062a1bdea3a55b617d11622951165fab6c3f43b2d4b6ea16784366`, recipient evidence append `0xb056a4f38017a3945bed369712523fd46fe5070140b1139ea29337802c5a084f`, dispute adjudication `0x5199cdd1baf92f968ccec59db66dc7ab72d6c31efb84b036703ce875ee6da16c`, and final release `0xe23ac901c45e66af6f9f258c769f252eec2f5bf2136353fd9dbe857837896254`. The release finalized with GenVM `SUCCESS` on the current contract. Final canonical state is `RELEASED`, `TRANSFER_QUEUED`, `RELEASE_TO_RECIPIENT`; custody balance decreased from `0.004` to `0.003 GEN` and the recipient is `0x4A7D76b8C4668a3426d6d54eC24b41Fa87b532f5`.
 
 ## Previous production release (v3 custody-enabled)
 
@@ -70,12 +70,12 @@
 
 - Direct Mode: 39 passed for the deployed contract source
 - GenVM lint: `✓ Lint passed (3 checks)`
-- Frontend tests: 35 passed (5 files)
+- Frontend tests: 36 passed (6 files)
 - Typecheck: PASS
 - ESLint: 0 errors, 0 warnings
 - Production build: PASS
 - Custody recovery: when dispute consensus returns `OTHER`, the payer proposes `RELEASE` or `REFUND` with `resolve_dispute_choice`; the recipient must accept the identical bounded choice with `accept_dispute_choice` before custody moves. The proposal is stored with a 900-second deadline; if the recipient does not respond, anyone may call `resolve_expired_dispute_proposal` and custody deterministically refunds to the payer. The fallback never releases to a silent recipient and cannot be replayed after settlement.
-- Exact-head CI: PASS, run `36647477901`, https://github.com/Bibidee/termsrail/actions/runs/36647477901 (HEAD `873e3b7aa1faaa812dbdb3668c56cad51e3783d3`)
+- Exact-head CI: PASS, run `36694956596`, https://github.com/Bibidee/termsrail/actions/runs/36694956596 (HEAD `9a01b129bea76c2b36f1c558647d847ede3039f1`)
 
 ## Milestone adjudication correction round
 

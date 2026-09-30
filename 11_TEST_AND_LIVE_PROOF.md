@@ -70,5 +70,17 @@ Required minimum:
 
 Also prove at least one fail-closed condition such as source-version invalidation, stale TTL, policy conflict or spec mismatch.
 
+## Live verified custody proofs
+
+### Refund path (escrow 1)
+
+The new deployment has a finalized refund proof: create `0x2fe1e7508643f953d6b57f4e53aaccf2018626bad2fe4a94f39d47f52e1d0a43`, fund `0x2f67aa4b6d2121855eab45cd4d04292b9f28f8ecf9f1bca13ae6f323b8837a3d`, lock `0x4fe70b955d280a427060e1777775c193cc97c5477e77f06775bce2fb9b9b9066`, submit evidence `0x005912910363337be7f78fff433cac066f5e47ccece8a3e2eda87be48e916599`, adjudicate `0x2613e9cb8eb7e2f35f20a09750235ac7b1e43c472cb7667efcb5453f16f3aa28`, then complete the two-party `OTHER` refund handshake. Canonical terminal state: `REFUNDED`, `TRANSFER_QUEUED`, `REFUND_TO_PAYER`.
+
+### Release path (escrow 3)
+
+The current deployment also has a finalized release proof. The corrected acceptance artifact is pinned to commit `9a01b12` with SHA-256 `67006A9DA1DE5F7BE3E80A66CAB493BE573DAEF419DE1CFA15DC447AA4AE7C1E`. Payer evidence append: `0xcf3e44f8f8062a1bdea3a55b617d11622951165fab6c3f43b2d4b6ea16784366`; recipient evidence append: `0xb056a4f38017a3945bed369712523fd46fe5070140b1139ea29337802c5a084f`; dispute adjudication: `0x5199cdd1baf92f968ccec59db66dc7ab72d6c31efb84b036703ce875ee6da16c` with verdict `RELEASE`; final release: `0xe23ac901c45e66af6f9f258c769f252eec2f5bf2136353fd9dbe857837896254`.
+
+Explorer verification: the final release is `FINALIZED` with validator execution results `SUCCESS`, targets `0xc515F0742D0d94cA3EE7d50702C0669c2B03EC0b`, and originates from the recipient wallet. Canonical escrow 3 is `RELEASED`, `TRANSFER_QUEUED`, `RELEASE_TO_RECIPIENT`; custody decreased from `4000000000000000` wei to `3000000000000000` wei. The recipient is `0x4A7D76b8C4668a3426d6d54eC24b41Fa87b532f5`.
+
 ## HANDOFF evidence
 Record repo, commit, source SHA, frontend, network, contract, explorer, deploy/service/snapshot/action/authorization/change/rebuild/reassessment/fail-closed txs, lint/schema/tests/typecheck/lint/build and limitations.
