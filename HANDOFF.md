@@ -75,7 +75,7 @@
 - ESLint: 0 errors, 0 warnings
 - Production build: PASS
 - Custody recovery: when dispute consensus returns `OTHER`, the payer proposes `RELEASE` or `REFUND` with `resolve_dispute_choice`; the recipient must accept the identical bounded choice with `accept_dispute_choice` before custody moves. The proposal is stored with a 900-second deadline; if the recipient does not respond, anyone may call `resolve_expired_dispute_proposal` and custody deterministically refunds to the payer. The fallback never releases to a silent recipient and cannot be replayed after settlement.
-- Exact-head CI: PASS, run `36694956596`, https://github.com/Bibidee/termsrail/actions/runs/36694956596 (HEAD `9a01b129bea76c2b36f1c558647d847ede3039f1`)
+- Exact-head CI: PASS, run `36696834126`, https://github.com/Bibidee/termsrail/actions/runs/36696834126 (HEAD `05685b4be3ed524f818e118bf6ec049a04441de2`)
 
 ## Milestone adjudication correction round
 
