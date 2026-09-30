@@ -1,5 +1,7 @@
 # More Information
 
+> Historical note: contract addresses, live transaction hashes and test totals below refer to the releases explicitly labelled in each section. They are not interchangeable with the current audited source or a future redeployment.
+
 ## Reviewer Fix: Explicit Allowance Loss
 
 Gen. Dave requested:

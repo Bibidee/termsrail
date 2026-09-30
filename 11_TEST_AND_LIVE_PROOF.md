@@ -1,5 +1,9 @@
 # TERMSRAIL — Test & Live Proof
 
+## Current v4 security deployment
+
+The revised source was deployed fresh to Studionet at `0x6a1023185e64Ae635EC9474AaF1360E89A845541` (deployment transaction `0x17f5acc957d8c022ea125f1cb1709a67bf19abbd39f82ccd74023e075bd5fc0f`, source SHA-256 `2E3565C8C2CC8C3A63F1C46929EEEA762D2C755ABE3182AF665E10529936E99D`). This registry starts empty; all older records and custody proofs below are historical and remain on their original contracts.
+
 ## Contract tests
 ### Service/source
 Valid registration, duplicate keys, source bounds, source-role mismatch, invalid/non-HTTPS/credential/private URLs, oversized fields, TTL bounds, permissions.

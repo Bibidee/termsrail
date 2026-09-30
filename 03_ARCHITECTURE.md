@@ -12,8 +12,10 @@ GENLAYER INTELLIGENT CONTRACT
  - verdict derivation, invalidation, execution gate
  nondeterministic:
  A. policy snapshot extraction
- B. action authorization
- C. material policy-change detection
+ B. material policy-change detection
+ D. escrow completion/dispute evidence adjudication
+ deterministic over accepted consensus:
+ C. structured action authorization and execution-gate derivation
         |
         v
 independent validator fetches
@@ -22,8 +24,9 @@ ToS | API Terms | AUP | Automation Policy
 
 ## Three consensus stages
 A: fetch current policy sources and establish bounded policy dimensions.
-B: compare exact structured action to the accepted policy snapshot.
+B: compare exact structured action to the accepted policy snapshot using deterministic invariants and the accepted semantic snapshot.
 C: fetch policy sources again and determine whether operative rule meaning materially changed.
+D: adjudicate bounded escrow evidence against the immutable funded milestone specification; validators independently repeat the evidence and criteria checks.
 
 ## Source update
 Creator replaces full source universe → source_version increments → current policy usability closes → new snapshot required → previous history remains.

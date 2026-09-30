@@ -34,4 +34,4 @@ Structured authorization observation identifies violations, then deterministic c
 A deterministic contract cannot safely interpret changing natural-language service policies. A central AI service would become the authority. TermsRail uses validator consensus to create neutral shared policy state.
 
 ## Not TermsRail
-Not legal advice, generic summarization, dispute resolution, escrow, prediction resolution, uptime checking, dependency lifecycle tracking, or internal code change-control.
+TermsRail is not legal advice or generic summarization. Its custody-enabled milestone layer does provide bounded escrow and dispute-resolution mechanics for payable GEN, but it does not decide legal enforceability outside the configured agreement. It is not prediction resolution, uptime checking, dependency lifecycle tracking, or internal code change-control.

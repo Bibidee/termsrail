@@ -1,4 +1,4 @@
-import json, time
+import hashlib, json, time
 from pathlib import Path
 
 CONTRACT = Path(__file__).parents[1] / "contracts" / "termsrail.py"
@@ -19,6 +19,30 @@ def fund_escrow(contract, vm, escrow_id, amount=1):
         return contract.fund_escrow(escrow_id)
     finally:
         vm.value = 0
+
+
+def completion_mock(contract, escrow_id, verdict, satisfaction="SATISFIED"):
+    escrow = json.loads(contract.get_escrow(escrow_id))
+    criteria = escrow["milestone_spec"]["acceptance_criteria"]
+    values = {str(index): satisfaction for index in range(len(criteria))}
+    return json.dumps({"verdict": verdict, "criteria_hash": escrow["criteria_hash"], "criterion_satisfaction": values})
+
+
+def setup_funded_with_criteria(direct_deploy, direct_vm, key, criteria):
+    response = {d: "ALLOWED" for d in DIMENSIONS}
+    direct_vm.mock_web(key, {"status": 200, "body": "allowed terms"})
+    direct_vm.mock_llm(r"classifying hostile policy evidence", json.dumps(response))
+    c = direct_deploy(str(CONTRACT), sdk_version="v0.2.12")
+    sid = c.register_service(key, key, f"{key}.example.com", f"https://{key}.example.com/p", "TERMS_OF_SERVICE", 86400)
+    c.build_policy_snapshot(sid)
+    aid = c.register_action(sid, f"{key}-action", "OTHER", "work", fields())
+    c.authorize_action(aid)
+    pid = c.create_plan(key, "milestone", json.dumps([{"service_id": sid, "action_id": aid}]))
+    c.authorize_plan(pid)
+    spec = json.dumps({"deliverable": "Artifact ABC", "acceptance_criteria": criteria, "evidence_requirements": "Hash-verified artifact evidence", "completion_definition": "Every criterion is satisfied"})
+    eid = c.create_escrow(pid, "0x0000000000000000000000000000000000000002", 1, int(time.time()) + 3600, spec)
+    assert fund_escrow(c, direct_vm, eid) == "FUNDED"
+    return c, eid
 
 
 def test_service_persists_and_rejects_bad_url(direct_deploy, direct_vm):
@@ -286,10 +310,10 @@ def test_completion_adjudication_release_and_dispute_evidence(direct_deploy, dir
     response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"settlement",{"status":200,"body":"allowed terms"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response)); c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("settlement","Settlement","settlement.example.com","https://settlement.example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); aid=c.register_action(sid,"settle-action","OTHER","work",fields()); c.authorize_action(aid); pid=c.create_plan("Settlement","complete",json.dumps([{"service_id":sid,"action_id":aid}])); c.authorize_plan(pid); eid=c.create_escrow(pid,"0x0000000000000000000000000000000000000002",1,int(time.time())+3600); assert fund_escrow(c,direct_vm,eid)=="FUNDED"; funded=json.loads(c.get_escrow(eid)); assert funded["custody"]=="HELD" and funded["funded_amount"]==1; assert json.loads(c.get_escrow_execution_state(eid))["settlement_allowed"] is False
     with direct_vm.expect_revert("invalid evidence hash"): c.submit_completion(eid,"bad hash",'["https://settlement.example.com/evidence"]','["not-a-sha256"]')
     direct_vm.mock_web(r"evidence\.example\.com/complete",{"status":200,"body":"deliverable evidence"})
-    cid=c.submit_completion(eid,"deliverable complete",'["https://evidence.example.com/complete"]','["f9a72efb6b7a6bb9019f9c2bf43e03cbad604ecb98bb8f632df941021efc824e"]'); assert '"completion_id": "'+cid+'"' in c.get_completion(cid); direct_vm.mock_llm(r"Classify completion evidence",json.dumps({"verdict":"COMPLETED"})); adid=c.adjudicate_completion(cid); assert '"verdict": "COMPLETED"' in c.get_adjudication(adid)
+    cid=c.submit_completion(eid,"deliverable complete",'["https://evidence.example.com/complete"]','["f9a72efb6b7a6bb9019f9c2bf43e03cbad604ecb98bb8f632df941021efc824e"]'); assert '"completion_id": "'+cid+'"' in c.get_completion(cid); direct_vm.mock_llm(r"Classify completion evidence",completion_mock(c,eid,"COMPLETED")); adid=c.adjudicate_completion(cid); assert '"verdict": "COMPLETED"' in c.get_adjudication(adid)
     with direct_vm.expect_revert("completion not reviewable"): c.adjudicate_completion(cid)
     with direct_vm.expect_revert("invalid escrow state"): c.submit_completion(eid,"second completion","[]","[]")
-    payer=direct_vm.sender; direct_vm.sender=bytes.fromhex("00"*19+"02")
+    direct_vm.warp("2100-01-01T00:00:00Z"); payer=direct_vm.sender; direct_vm.sender=bytes.fromhex("00"*19+"02")
     try: assert c.release_escrow(eid)=="RELEASED"
     finally: direct_vm.sender=payer
     with direct_vm.expect_revert("canonical release not authorized"): c.release_escrow(eid)
@@ -409,7 +433,7 @@ def test_receipts_supersede_and_escrow_expiry_guards(direct_deploy, direct_vm):
     with direct_vm.expect_revert("not expired"): c.expire_escrow(future)
 
 def test_not_completed_adjudication_allows_refund_only(direct_deploy, direct_vm):
-    response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"refund",{"status":200,"body":"allowed terms"}); direct_vm.mock_web(r"evidence\.example\.com/not-complete",{"status":200,"body":"not completed evidence"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response)); c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("refund","Refund","refund.example.com","https://refund.example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); aid=c.register_action(sid,"refund-action","OTHER","work",fields()); c.authorize_action(aid); pid=c.create_plan("Refund","not complete",json.dumps([{"service_id":sid,"action_id":aid}])); c.authorize_plan(pid); eid=c.create_escrow(pid,"0x0000000000000000000000000000000000000002",1,int(time.time())+3600); fund_escrow(c,direct_vm,eid); cid=c.submit_completion(eid,"not completed",'["https://evidence.example.com/not-complete"]','["efd03795c399bdc14362fa091a5d815633c7ef3620e2e5ad98fe4e4a44a0b04a"]'); direct_vm.mock_llm(r"Classify completion evidence",json.dumps({"verdict":"NOT_COMPLETED"})); c.adjudicate_completion(cid); assert c.refund_escrow(eid)=="REFUNDED"
+    response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"refund",{"status":200,"body":"allowed terms"}); direct_vm.mock_web(r"evidence\.example\.com/not-complete",{"status":200,"body":"not completed evidence"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response)); c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("refund","Refund","refund.example.com","https://refund.example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); aid=c.register_action(sid,"refund-action","OTHER","work",fields()); c.authorize_action(aid); pid=c.create_plan("Refund","not complete",json.dumps([{"service_id":sid,"action_id":aid}])); c.authorize_plan(pid); eid=c.create_escrow(pid,"0x0000000000000000000000000000000000000002",1,int(time.time())+3600); fund_escrow(c,direct_vm,eid); cid=c.submit_completion(eid,"not completed",'["https://evidence.example.com/not-complete"]','["efd03795c399bdc14362fa091a5d815633c7ef3620e2e5ad98fe4e4a44a0b04a"]'); direct_vm.mock_llm(r"Classify completion evidence",completion_mock(c,eid,"NOT_COMPLETED","NOT_SATISFIED")); c.adjudicate_completion(cid); direct_vm.warp("2100-01-01T00:00:00Z"); assert c.refund_escrow(eid)=="REFUNDED"
 
 def test_completion_evidence_unavailable_and_injection_fail_closed(direct_deploy, direct_vm):
     response={d:"ALLOWED" for d in DIMENSIONS}; direct_vm.mock_web(r"evidence-hostile",{"status":200,"body":"allowed terms"}); direct_vm.mock_llm(r"classifying hostile policy evidence",json.dumps(response)); c=direct_deploy(str(CONTRACT),sdk_version="v0.2.12"); sid=c.register_service("evidence-hostile","Evidence Hostile","evidence-hostile.example.com","https://evidence-hostile.example.com/p","TERMS_OF_SERVICE",86400); c.build_policy_snapshot(sid); aid=c.register_action(sid,"evidence-action","OTHER","work",fields()); c.authorize_action(aid); pid=c.create_plan("Evidence","hostile",json.dumps([{"service_id":sid,"action_id":aid}])); c.authorize_plan(pid); eid=c.create_escrow(pid,"0x0000000000000000000000000000000000000002",1,int(time.time())+3600); fund_escrow(c,direct_vm,eid)

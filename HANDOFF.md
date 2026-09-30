@@ -6,12 +6,12 @@
 - Frontend: https://termsrail.vercel.app
 - Production Vercel deployment: the frontend-only correction is Ready at `https://termsrail-gm58xv02l-bibidees-projects.vercel.app`, aliased to `https://termsrail.vercel.app`.
 - Public production build check: the production alias serves the corrected contract target and the escrow release state; `/api/version` reports `environment: production` (the direct CLI deployment has no Git commit metadata).
-- Production bundle uses `NEXT_PUBLIC_CONTRACT_ADDRESS=0xc515F0742D0d94cA3EE7d50702C0669c2B03EC0b`.
-- Current audited Studionet contract: `0xc515F0742D0d94cA3EE7d50702C0669c2B03EC0b`.
-- Deployment transaction: `0x880d4b609cf0a4bd234b47134a4047c09c7d1f7929cddc05a64bfb9acecaf537`.
+- Production bundle uses `NEXT_PUBLIC_CONTRACT_ADDRESS=0x6a1023185e64Ae635EC9474AaF1360E89A845541`.
+- Current audited Studionet contract: `0x6a1023185e64Ae635EC9474AaF1360E89A845541`.
+- Deployment transaction: `0x17f5acc957d8c022ea125f1cb1709a67bf19abbd39f82ccd74023e075bd5fc0f`.
 - Deployer: `0x865e118a3be4FA0760775565fCd31be156e1e3d7` (`signalbond-challenger-unlocked`).
 - Contract receipt: FINALIZED, GenVM SUCCESS, consensus `MAJORITY_AGREE`.
-- Deployed contract source SHA-256: `11089B067E86575558EC3F59775DBA096DE3D691226CBF497A482152648D9C20`.
+- Deployed contract source SHA-256: `2E3565C8C2CC8C3A63F1C46929EEEA762D2C755ABE3182AF665E10529936E99D`.
 - No records or custody were migrated from prior deployments.
 - Hosted CI and final frontend deployment are release gates; the exact successful run and production deployment are recorded with the final release report rather than duplicated as mutable values here.
 - Current live non-financial proofs on the prior registry remain historical and are not presented as records on this fresh deployment.
@@ -35,7 +35,7 @@
 - Deployer: `0x2cd419603eBa593074653930Ddc4073d4FD8fc60` (`fresh-bob`)
 - Receipt: FINALIZED, GenVM SUCCESS, consensus `MAJORITY_AGREE`
 - Source SHA-256: `0DB6BAB48A493AD0B74630191185DC08C0EC6330C791C215DA41773EBCD7CC85`
-- Production frontend: `https://termsrail.vercel.app` (latest Vercel deployment `dpl_2uzgEHou9oJCoFn4njDZyqU5qrZ5`, Ready; deployment URL `https://termsrail-3q8lmcud8-bibidees-projects.vercel.app`). This release explicitly explains that the copied demo service is `NEEDS_SNAPSHOT` and links users to register a service with a real public source. Production `NEXT_PUBLIC_CONTRACT_ADDRESS` points to this contract; the production bundle was verified to contain the new address.
+- Production frontend: `https://termsrail.vercel.app` (a fresh frontend deployment for this contract is required after exact-head CI). Production `NEXT_PUBLIC_CONTRACT_ADDRESS` must point to the current contract above; the previous deployment URL is historical.
 - Migration: previous contracts retained unchanged. No service, action, plan, receipt, escrow or custody records were migrated; the new registry starts empty.
 - Snapshot tx `0xd7f9fba92a02b4c6ab980acb4fac59ab60c4c6559226a890fdc29a1d29466464` ended `UNDETERMINED` after four rounds. The copied demo service therefore remains `NEEDS_SNAPSHOT` (policy version 0); do not treat it as an active authorization basis. Retry only with valid source evidence and accepted consensus.
 - Production build and aliasing succeeded after `.vercelignore` excluded local test/cache artifacts. Read-only verification returned HTTP 200 for the production home and `/escrow`, and `/api/version` reported production environment. The live escrow page now explains the creation/funding prerequisites and the missing accepted snapshot.
@@ -85,7 +85,7 @@
 - Each escrow now carries one canonical settlement outcome for its current cycle. Historical verdicts cannot authorize opposing destinations. A finalized RELEASE always transfers to the recipient; a finalized REFUND always transfers to the payer; an `OTHER` recovery requires an explicit payer proposal plus matching recipient acceptance, and a second settlement is rejected.
 - Optional plan steps remain in receipts but do not block a plan; required steps continue to gate it. Policy change, plan hash, source/policy version and authorization identity checks remain mandatory.
 - Final correction validation: 36 Direct Mode tests and 34 frontend tests pass; typecheck, ESLint and build pass. GenVM static and SDK validation pass. Hosted CI run `36625413972` passed on exact HEAD `a9256af9baf3131cef09428617862059c8fb38b7`.
-- Audited contract source SHA-256: `11089B067E86575558EC3F59775DBA096DE3D691226CBF497A482152648D9C20`.
+- Audited contract source SHA-256: `11089B067E86575558EC3F59775DBA096DE3D691226CBF497A482152648D9C20` (historical deployment; current SHA is recorded above).
 
 ## v3 custody checkpoint
 
