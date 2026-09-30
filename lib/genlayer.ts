@@ -98,16 +98,22 @@ export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193,
   if (!receipt) throw new Error('Transaction did not finalize');
   onPhase?.({phase:'FINALIZED',hash});
   onPhase?.({phase:'VERIFYING_EXECUTION',hash});
-  // Verify GenVM before attempting canonical synchronization. A failed
-  // execution cannot produce the expected state, so surfacing it first avoids
-  // hiding the real error behind a multi-minute readback timeout.
-  const execution=await waitForExecutionResult(client,hash,receipt);
-  assertSuccessfulExecution(execution);
-  onPhase?.({phase:'EXECUTION_VERIFIED',hash});
   onPhase?.({phase:'SYNCING_CANONICAL_STATE',hash});
-  const state=await waitForCanonicalState({read:readback,predicate:expected,onRetry:attempt=>onPhase?.({phase:'SYNCING_CANONICAL_STATE',hash,attempt})});
-  onPhase?.({phase:'CANONICAL_STATE_FOUND',hash,canonicalState:state});
-  onCanonical?.(state);
+  // StudioNet can publish canonical state before execution metadata. Start
+  // both post-finality checks together so creation pages can expose the
+  // resolved record without ever treating it as execution success. The
+  // returned promise still requires both checks to complete successfully.
+  const executionPromise=waitForExecutionResult(client,hash,receipt).then(execution=>{
+    assertSuccessfulExecution(execution);
+    onPhase?.({phase:'EXECUTION_VERIFIED',hash});
+    return execution;
+  });
+  const canonicalPromise=waitForCanonicalState({read:readback,predicate:expected,onRetry:attempt=>onPhase?.({phase:'SYNCING_CANONICAL_STATE',hash,attempt})}).then(state=>{
+    onPhase?.({phase:'CANONICAL_STATE_FOUND',hash,canonicalState:state});
+    onCanonical?.(state);
+    return state;
+  });
+  const [,state]=await Promise.all([executionPromise,canonicalPromise]);
   onPhase?.({phase:'SUCCESS',hash});
   return { hash, receipt, state };
 }
