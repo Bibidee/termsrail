@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import path from 'node:path';
 
 const [contractArg, serviceKey, name, domain, sourceUrl, role = 'TERMS_OF_SERVICE', ttlArg = '86400'] = process.argv.slice(2);
 const contract = (contractArg || process.env.TERMSRAIL_CONTRACT_ADDRESS || process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '').trim();
@@ -20,9 +21,15 @@ const sourceHost = parsedUrl.hostname.toLowerCase().replace(/^www\./, '');
 if (sourceHost !== normalizedDomain && !sourceHost.endsWith(`.${normalizedDomain}`)) throw new Error('Policy URL hostname must match the registered service domain or one of its subdomains.');
 if (/example\.(com|org|net)$/i.test(sourceHost) || /\.example$/i.test(sourceHost)) throw new Error('Placeholder example domains cannot be registered as live policy sources.');
 
-const executable = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-const args = ['--yes', 'genlayer', 'write', contract, 'register_service', '--args', serviceKey, name, domain, JSON.stringify([sourceUrl]), JSON.stringify([role]), String(ttl)];
+const executable = process.platform === 'win32' ? process.execPath : 'npx';
+const npxEntry = process.platform === 'win32'
+  ? path.join(process.env.ProgramFiles || 'C:\\Program Files', 'nodejs', 'node_modules', 'npm', 'bin', 'npx-cli.js')
+  : '';
+const args = [ ...(npxEntry ? [npxEntry] : []), '--yes', 'genlayer', 'write', contract, 'register_service', '--args', serviceKey, name, domain, JSON.stringify([sourceUrl]), JSON.stringify([role]), String(ttl)];
 console.log(`Registering ${name} on ${contract}; source URL: ${sourceUrl}`);
-const result = spawnSync(executable, args, { stdio: 'inherit', shell: process.platform === 'win32' });
+// Pass JSON array arguments directly.  Using `shell: true` on Windows strips
+// the quotes inside JSON arrays, turning `["https://…"]` into
+// `[https://…]` before the contract sees it.
+const result = spawnSync(executable, args, { stdio: 'inherit', shell: false });
 if (result.error) throw result.error;
 process.exit(result.status ?? 1);
