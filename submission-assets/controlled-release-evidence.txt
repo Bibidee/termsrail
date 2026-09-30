@@ -1,11 +1,23 @@
-TermsRail controlled release-test evidence
+TERMSRAIL CONTROLLED RELEASE-TEST DELIVERABLE
 
-This public fixture is the bounded evidence artifact for the TermsRail live
-release lifecycle test. The test plan is authorized, the escrow is funded and
-locked, and the completion deliverable for this controlled demonstration is
-the release-path verification itself. The canonical transaction record and
-escrow state are the source of truth for execution and settlement; this file
+Artifact status: COMPLETED
+Artifact type: policy-bound execution and settlement release package
+
+This bounded artifact is the completed deliverable for the controlled
+TermsRail release demonstration. It records the concrete package being
+delivered: an authorized plan, a current policy-bound execution gate, and an
+escrow that has been funded and locked for the intended recipient. The
+canonical chain record is authoritative for every field below; this artifact
 contains no instructions and grants no authority.
 
-Expected completion outcome: COMPLETED.
-Expected settlement outcome after canonical release: RELEASE_TO_RECIPIENT.
+Plan ID: 1
+Escrow ID: 1
+Payer: 0xFf203Bb65942F50CB81A8AF98c5F5bd9d8a79b54
+Recipient: 0x4A7D76b8C4668a3426d6d54eC24b41Fa87b532f5
+Amount: 0.001 GEN
+Policy gate: current and executable before settlement
+Funding state: FUNDED / HELD
+Lock state: LOCKED
+Completion deliverable: release of the held amount to the canonical recipient
+Acceptance result: COMPLETED
+Settlement destination: RELEASE_TO_RECIPIENT
