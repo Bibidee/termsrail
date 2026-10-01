@@ -152,15 +152,26 @@ class TermsRail(gl.Contract):
         escrow["settlement_source"]=source
         return escrow
 
+    def promote_provisional_outcome(self,escrow,outcome,source="COMPLETION_ADJUDICATION_FINALIZED"):
+        """Promote an uncontested provisional result exactly once at settlement time."""
+        provisional=escrow.get("provisional_outcome","")
+        if provisional!=outcome: raise gl.vm.UserError("provisional settlement mismatch")
+        if escrow.get("settlement_outcome","") and escrow.get("settlement_outcome")!=outcome:
+            raise gl.vm.UserError("conflicting settlement outcome")
+        self.canonical_settlement_outcome(escrow,outcome,source)
+        escrow["challenge_status"]="CHALLENGE_CLEARED"
+        return escrow
+
     def settlement_ready(self,escrow,eid,outcome):
         # Funding creates an immutable economic commitment.  Current policy
         # authorization gates NEW execution, but cannot strand already-held
         # custody after a later policy change or authorization expiry.
         funding=escrow.get("funding_snapshot") or {}
-        challenge_ready=escrow.get("challenge_status")=="CHALLENGE_CLEARED" or (escrow.get("challenge_status")=="PROVISIONAL" and int(escrow.get("challenge_deadline",0))>0 and now()>=int(escrow.get("challenge_deadline",0)))
+        challenge_ready=escrow.get("challenge_status")=="CHALLENGE_CLEARED" or (escrow.get("challenge_status")=="PROVISIONAL" and int(escrow.get("challenge_deadline",0))>0 and now()>=int(escrow.get("challenge_deadline",0)) and not self.has_active_dispute(eid))
+        authorized_outcome=escrow.get("settlement_outcome") or (escrow.get("provisional_outcome") if challenge_ready else "")
         return (escrow.get("custody")=="HELD" and bool(funding) and
                 escrow.get("status") not in ("RELEASED","REFUNDED","EXPIRED") and
-                escrow.get("settlement_outcome")==outcome and
+                authorized_outcome==outcome and
                 challenge_ready and
                 int(funding.get("amount",0))==int(escrow.get("amount",0)) and
                 str(funding.get("payer"))==str(escrow.get("payer")) and
@@ -408,7 +419,7 @@ class TermsRail(gl.Contract):
         if len(self.escrow_ids)>=MAX_ESCROWS: raise gl.vm.UserError("escrow capacity reached")
         spec=canonical_milestone_spec(plan,milestone_spec); criteria_hash=digest(spec); spec_source="EXPLICIT" if str(milestone_spec or "").strip() else "PLAN_DERIVED"
         eid=str(self.next_escrow_id); self.next_escrow_id+=1
-        escrow={"escrow_id":eid,"plan_id":str(pid),"plan_hash":plan.get("plan_hash",""),"authorization_id":digest(auth),"authorization_expires_at":int(auth.get("expires_at",0)),"payer":str(gl.message.sender_address),"recipient":recipient,"amount":int(amount),"created_at":now(),"funded_at":0,"deadline":int(deadline),"status":"CREATED","custody":"UNFUNDED","funded_amount":0,"milestone_spec":spec,"milestone_spec_source":spec_source,"criteria_hash":criteria_hash,"funding_snapshot":{},"settlement_status":"NONE","settlement_outcome":"","settlement_source":"","active_completion_id":"","active_adjudication_id":"","challenge_deadline":0,"challenge_status":"NOT_STARTED","settlement_cycle":1}
+        escrow={"escrow_id":eid,"plan_id":str(pid),"plan_hash":plan.get("plan_hash",""),"authorization_id":digest(auth),"authorization_expires_at":int(auth.get("expires_at",0)),"payer":str(gl.message.sender_address),"recipient":recipient,"amount":int(amount),"created_at":now(),"funded_at":0,"deadline":int(deadline),"status":"CREATED","custody":"UNFUNDED","funded_amount":0,"milestone_spec":spec,"milestone_spec_source":spec_source,"criteria_hash":criteria_hash,"funding_snapshot":{},"settlement_status":"NONE","settlement_outcome":"","settlement_source":"","provisional_outcome":"","provisional_source":"","provisional_adjudication_id":"","active_completion_id":"","active_adjudication_id":"","challenge_deadline":0,"challenge_status":"NOT_STARTED","settlement_cycle":1}
         encoded=json.dumps(escrow,sort_keys=True); self.escrows[eid]=encoded; self.escrow_ids.append(eid); self.escrow_histories[eid]=[encoded]; return eid
 
     @gl.public.write.payable
@@ -445,9 +456,9 @@ class TermsRail(gl.Contract):
     def get_escrow_execution_state(self,eid:str)->str:
         raw=self.escrows.get(str(eid),"")
         if not raw:return json.dumps({"settlement_allowed":False,"reason":"ESCROW_NOT_FOUND"},sort_keys=True)
-        escrow=json.loads(raw); plan_raw=self.plans.get(escrow["plan_id"],""); plan=json.loads(plan_raw) if plan_raw else {}; hash_match=bool(plan_raw and plan.get("plan_hash")==escrow.get("plan_hash")); auth_match=bool(hash_match and self.current_plan_authorization_id(escrow["plan_id"])==escrow.get("authorization_id")); authorization_current=bool(plan_raw and hash_match and auth_match and self.is_plan_executable(escrow["plan_id"]) and now()<=escrow["deadline"]); execution_allowed=authorization_current and escrow["status"] in ("FUNDED","LOCKED"); challenge_ready=escrow.get("challenge_status")=="CHALLENGE_CLEARED" or (escrow.get("challenge_status")=="PROVISIONAL" and now()>=int(escrow.get("challenge_deadline",0))); settlement_allowed=bool(escrow.get("custody")=="HELD" and escrow.get("settlement_outcome") in ("RELEASE","REFUND") and escrow["status"] not in ("RELEASED","REFUNDED") and challenge_ready)
+        escrow=json.loads(raw); plan_raw=self.plans.get(escrow["plan_id"],""); plan=json.loads(plan_raw) if plan_raw else {}; hash_match=bool(plan_raw and plan.get("plan_hash")==escrow.get("plan_hash")); auth_match=bool(hash_match and self.current_plan_authorization_id(escrow["plan_id"])==escrow.get("authorization_id")); authorization_current=bool(plan_raw and hash_match and auth_match and self.is_plan_executable(escrow["plan_id"]) and now()<=escrow["deadline"]); execution_allowed=authorization_current and escrow["status"] in ("FUNDED","LOCKED"); challenge_ready=escrow.get("challenge_status")=="CHALLENGE_CLEARED" or (escrow.get("challenge_status")=="PROVISIONAL" and now()>=int(escrow.get("challenge_deadline",0)) and not self.has_active_dispute(eid)); authorized_outcome=escrow.get("settlement_outcome") or (escrow.get("provisional_outcome") if challenge_ready else ""); settlement_allowed=bool(escrow.get("custody")=="HELD" and authorized_outcome in ("RELEASE","REFUND") and escrow["status"] not in ("RELEASED","REFUNDED") and challenge_ready)
         reason="READY" if execution_allowed else "AWAITING_ADJUDICATION" if settlement_allowed and escrow["status"] in ("UNDER_REVIEW","DISPUTED") else "ESCROW_EXPIRED" if now()>escrow["deadline"] else "PLAN_HASH_MISMATCH" if not hash_match else "AUTHORIZATION_ID_MISMATCH" if not auth_match else "POLICY_CHANGE_PENDING" if escrow["status"]=="FROZEN_POLICY_CHANGE" else "PLAN_NOT_EXECUTABLE"
-        return json.dumps({"plan_exists":bool(plan_raw),"plan_hash_match":hash_match,"authorization_exists":bool(self.plan_authorizations.get(escrow["plan_id"],"")),"authorization_identity_match":auth_match,"authorization_current":authorization_current,"policy_versions_current":authorization_current,"source_versions_current":authorization_current,"action_specs_current":authorization_current,"policy_change_pending":escrow["status"]=="FROZEN_POLICY_CHANGE","escrow_status":escrow["status"],"deadline_valid":now()<=escrow["deadline"],"escrow_funded":escrow.get("custody")=="HELD","funded_amount":escrow.get("funded_amount",0),"custody":escrow.get("custody","UNFUNDED"),"funding_snapshot":escrow.get("funding_snapshot",{}),"milestone_spec":escrow.get("milestone_spec",{}),"criteria_hash":escrow.get("criteria_hash",""),"settlement_status":escrow.get("settlement_status","NONE"),"settlement_outcome":escrow.get("settlement_outcome",""),"active_adjudication_id":escrow.get("active_adjudication_id",""),"challenge_status":escrow.get("challenge_status","NOT_STARTED"),"challenge_deadline":escrow.get("challenge_deadline",0),"challenge_ready":challenge_ready,"contract_balance":int(self.balance),"escrow_frozen":escrow["status"]=="FROZEN_POLICY_CHANGE","execution_allowed":execution_allowed,"completion_required":True,"settlement_allowed":settlement_allowed,"reason":reason},sort_keys=True)
+        return json.dumps({"plan_exists":bool(plan_raw),"plan_hash_match":hash_match,"authorization_exists":bool(self.plan_authorizations.get(escrow["plan_id"],"")),"authorization_identity_match":auth_match,"authorization_current":authorization_current,"policy_versions_current":authorization_current,"source_versions_current":authorization_current,"action_specs_current":authorization_current,"policy_change_pending":escrow["status"]=="FROZEN_POLICY_CHANGE","escrow_status":escrow["status"],"deadline_valid":now()<=escrow["deadline"],"escrow_funded":escrow.get("custody")=="HELD","funded_amount":escrow.get("funded_amount",0),"custody":escrow.get("custody","UNFUNDED"),"funding_snapshot":escrow.get("funding_snapshot",{}),"milestone_spec":escrow.get("milestone_spec",{}),"criteria_hash":escrow.get("criteria_hash",""),"settlement_status":escrow.get("settlement_status","NONE"),"settlement_outcome":escrow.get("settlement_outcome",""),"provisional_outcome":escrow.get("provisional_outcome",""),"provisional_source":escrow.get("provisional_source",""),"provisional_adjudication_id":escrow.get("provisional_adjudication_id",""),"active_adjudication_id":escrow.get("active_adjudication_id",""),"challenge_status":escrow.get("challenge_status","NOT_STARTED"),"challenge_deadline":escrow.get("challenge_deadline",0),"challenge_ready":challenge_ready,"contract_balance":int(self.balance),"escrow_frozen":escrow["status"]=="FROZEN_POLICY_CHANGE","execution_allowed":execution_allowed,"completion_required":True,"settlement_allowed":settlement_allowed,"reason":reason},sort_keys=True)
     @gl.public.view
     def is_escrow_executable(self,eid:str)->bool:
         raw=self.escrows.get(str(eid),"")
@@ -476,8 +487,8 @@ class TermsRail(gl.Contract):
         raw=self.escrows.get(str(eid),"")
         if not raw: raise gl.vm.UserError("escrow not found")
         escrow=json.loads(raw)
-        if now()<=escrow["deadline"] or escrow["status"] in ("RELEASED","REFUNDED","EXPIRED") or escrow.get("settlement_outcome")=="RELEASE": raise gl.vm.UserError("escrow not expired")
         if self.has_active_dispute(eid): raise gl.vm.UserError("resolve active dispute before expiry")
+        if now()<=escrow["deadline"] or escrow["status"] in ("RELEASED","REFUNDED","EXPIRED","UNDER_REVIEW","DISPUTED") or escrow.get("provisional_outcome") or escrow.get("settlement_outcome"): raise gl.vm.UserError("escrow not expired")
         escrow["status"]="EXPIRED"; self.escrows[str(eid)]=json.dumps(escrow,sort_keys=True); self.escrow_histories[str(eid)].append(self.escrows[str(eid)]); return "EXPIRED"
 
     @gl.public.write
@@ -518,10 +529,6 @@ class TermsRail(gl.Contract):
             else: satisfaction={str(index):"UNKNOWN" for index in range(len(criteria))}
             verdict_value=str(candidate.get("verdict","EVIDENCE_INSUFFICIENT"));
             if supplied_hash!=escrow.get("criteria_hash") or not satisfaction or verdict_value not in COMPLETION_VERDICTS: verdict_value="EVIDENCE_INSUFFICIENT"
-            if escrow.get("milestone_spec_source")=="EXPLICIT":
-                verified_text=" ".join(str(item.get("text","")) for item in observed if item.get("state")=="VERIFIED").lower()
-                for index,criterion in enumerate(criteria):
-                    if str(criterion).lower() not in verified_text: satisfaction[str(index)]="UNKNOWN"
             if verdict_value=="COMPLETED" and (state!="SUFFICIENT" or any(value!="SATISFIED" for value in satisfaction.values())): verdict_value="EVIDENCE_INSUFFICIENT"
             if verdict_value=="NOT_COMPLETED" and not any(value=="NOT_SATISFIED" for value in satisfaction.values()): verdict_value="EVIDENCE_INSUFFICIENT"
             return {"verdict":verdict_value,"criteria_hash":supplied_hash,"criterion_satisfaction":satisfaction}
@@ -560,8 +567,8 @@ class TermsRail(gl.Contract):
         aid=str(self.next_completion_id); self.next_completion_id+=1; record={"adjudication_id":aid,"completion_id":str(cid),"escrow_id":completion["escrow_id"],"verdict":verdict,"evidence_state":evidence_state,"criteria_hash":criteria_hash,"milestone_spec":spec,"criterion_satisfaction":criterion_satisfaction,"evidence_manifest":completion.get("evidence_manifest",{}),"evidence_observations":[{k:v for k,v in item.items() if k!="text"} for item in observed_for_record],"timestamp":now()}; self.adjudications[aid]=json.dumps(record,sort_keys=True); hist=self.adjudication_histories.get(str(cid));
         if not hist:self.adjudication_histories[str(cid)]=[]
         self.adjudication_histories[str(cid)].append(self.adjudications[aid]); completion["status"]="ADJUDICATED"; self.completions[str(cid)]=json.dumps(completion,sort_keys=True)
-        if verdict=="COMPLETED": self.canonical_settlement_outcome(escrow,"RELEASE","COMPLETION_ADJUDICATION"); escrow.update({"active_adjudication_id":aid,"challenge_deadline":now()+CHALLENGE_WINDOW,"challenge_status":"PROVISIONAL"})
-        elif verdict=="NOT_COMPLETED": self.canonical_settlement_outcome(escrow,"REFUND","COMPLETION_ADJUDICATION"); escrow.update({"active_adjudication_id":aid,"challenge_deadline":now()+CHALLENGE_WINDOW,"challenge_status":"PROVISIONAL"})
+        if verdict=="COMPLETED": escrow.update({"active_adjudication_id":aid,"provisional_adjudication_id":aid,"provisional_outcome":"RELEASE","provisional_source":"COMPLETION_ADJUDICATION","challenge_deadline":now()+CHALLENGE_WINDOW,"challenge_status":"PROVISIONAL","settlement_outcome":"","settlement_source":""})
+        elif verdict=="NOT_COMPLETED": escrow.update({"active_adjudication_id":aid,"provisional_adjudication_id":aid,"provisional_outcome":"REFUND","provisional_source":"COMPLETION_ADJUDICATION","challenge_deadline":now()+CHALLENGE_WINDOW,"challenge_status":"PROVISIONAL","settlement_outcome":"","settlement_source":""})
         self.escrows[completion["escrow_id"]]=json.dumps(escrow,sort_keys=True); self.escrow_histories[completion["escrow_id"]].append(self.escrows[completion["escrow_id"]]); return aid
 
     @gl.public.write
@@ -571,6 +578,7 @@ class TermsRail(gl.Contract):
         escrow=json.loads(raw)
         if str(gl.message.sender_address) not in (escrow["payer"],escrow["recipient"]): raise gl.vm.UserError("permission denied")
         if not self.settlement_ready(escrow,eid,"RELEASE"): raise gl.vm.UserError("canonical release not authorized")
+        if not escrow.get("settlement_outcome"): self.promote_provisional_outcome(escrow,"RELEASE")
         if self.balance < u256(escrow["amount"]): raise gl.vm.UserError("escrow custody balance unavailable")
         escrow.update({"status":"RELEASED","custody":"TRANSFER_QUEUED","settlement_status":"RELEASE_TO_RECIPIENT"}); self.escrows[str(eid)]=json.dumps(escrow,sort_keys=True); self.escrow_histories[str(eid)].append(self.escrows[str(eid)])
         _Recipient(Address(escrow["recipient"])).emit_transfer(value=u256(escrow["amount"])); return "RELEASED"
@@ -587,6 +595,8 @@ class TermsRail(gl.Contract):
             self.canonical_settlement_outcome(escrow,"REFUND","EXPIRY")
         elif not self.settlement_ready(escrow,eid,"REFUND"):
             raise gl.vm.UserError("canonical refund not authorized")
+        elif not escrow.get("settlement_outcome"):
+            self.promote_provisional_outcome(escrow,"REFUND")
         if self.balance < u256(escrow["amount"]): raise gl.vm.UserError("escrow custody balance unavailable")
         escrow.update({"status":"REFUNDED","custody":"TRANSFER_QUEUED","settlement_status":"REFUND_TO_PAYER"}); self.escrows[str(eid)]=json.dumps(escrow,sort_keys=True); self.escrow_histories[str(eid)].append(self.escrows[str(eid)])
         _Recipient(Address(escrow["payer"])).emit_transfer(value=u256(escrow["amount"])); return "REFUNDED"
@@ -599,9 +609,10 @@ class TermsRail(gl.Contract):
         if str(gl.message.sender_address) not in (escrow["payer"],escrow["recipient"]): raise gl.vm.UserError("permission denied")
         if any(json.loads(self.disputes[did]).get("escrow_id")==str(eid) and not json.loads(self.disputes[did]).get("status","").startswith("RESOLVED_") for did in self.dispute_ids if self.disputes.get(did,"")): raise gl.vm.UserError("active dispute already exists")
         if escrow["status"] not in ("UNDER_REVIEW","LOCKED","FUNDED","FROZEN_POLICY_CHANGE"): raise gl.vm.UserError("invalid dispute state")
+        provisional_window=escrow.get("challenge_status")=="PROVISIONAL" and escrow.get("provisional_outcome") in ("RELEASE","REFUND") and now()<int(escrow.get("challenge_deadline",0))
         if escrow.get("challenge_status")=="PROVISIONAL" and now()>=int(escrow.get("challenge_deadline",0)): raise gl.vm.UserError("challenge window closed")
-        if escrow.get("custody")!="HELD" or now()>escrow["deadline"]: raise gl.vm.UserError("escrow execution blocked")
-        if escrow["status"]!="FROZEN_POLICY_CHANGE" and (not self.escrow_binding_valid(eid) or not self.is_plan_executable(escrow["plan_id"])): raise gl.vm.UserError("escrow execution blocked")
+        if escrow.get("custody")!="HELD" or (not provisional_window and now()>escrow["deadline"]): raise gl.vm.UserError("escrow execution blocked")
+        if not provisional_window and escrow["status"]!="FROZEN_POLICY_CHANGE" and (not self.escrow_binding_valid(eid) or not self.is_plan_executable(escrow["plan_id"])): raise gl.vm.UserError("escrow execution blocked")
         if len(self.dispute_ids)>=MAX_DISPUTES: raise gl.vm.UserError("dispute capacity reached")
         did=str(self.next_dispute_id); self.next_dispute_id+=1; created=now(); record={"dispute_id":did,"escrow_id":str(eid),"opener":str(gl.message.sender_address),"statement":clean(statement,2000),"criteria_hash":escrow.get("criteria_hash",""),"milestone_spec":escrow.get("milestone_spec",{}),"status":"DISPUTED","created_at":created,"response_deadline":created+DISPUTE_RESPONSE_WINDOW,"adjudication_verdict":"","resolution_choice":"","resolution_proposed_at":0,"resolution_deadline":0,"resolution_attempt":0,"resolution_status":"NONE"}; self.disputes[did]=json.dumps(record,sort_keys=True); self.dispute_ids.append(did); self.dispute_histories[did]=[self.disputes[did]]; escrow.update({"status":"DISPUTED","challenge_status":"CHALLENGED"}); self.escrows[str(eid)]=json.dumps(escrow,sort_keys=True); self.escrow_histories[str(eid)].append(self.escrows[str(eid)]); return did
     @gl.public.write
