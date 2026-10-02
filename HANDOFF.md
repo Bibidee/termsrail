@@ -6,12 +6,12 @@
 - Frontend: https://termsrail.vercel.app
 - Production Vercel deployment: Ready at `https://termsrail-5om5sai3z-bibidees-projects.vercel.app`, aliased to `https://termsrail.vercel.app`.
 - Public production build check: the production alias serves the corrected contract target and the escrow release state; `/api/version` reports `environment: production` (the direct CLI deployment has no Git commit metadata).
-- Production bundle uses `NEXT_PUBLIC_CONTRACT_ADDRESS=0x6a1023185e64Ae635EC9474AaF1360E89A845541`.
-- Current audited Studionet contract: `0x6a1023185e64Ae635EC9474AaF1360E89A845541`.
-- Deployment transaction: `0x17f5acc957d8c022ea125f1cb1709a67bf19abbd39f82ccd74023e075bd5fc0f`.
+- Production bundle uses `NEXT_PUBLIC_CONTRACT_ADDRESS=0x07Ef5B0c8FAeCA0B3C9fFF4fb3CCa9264F46FbC0`.
+- Current audited Studionet contract: `0x07Ef5B0c8FAeCA0B3C9fFF4fb3CCa9264F46FbC0`.
+- Deployment transaction: `0x624ca24baa77efb270dcbdcfa797ba4cedcabb2af3a8bab765727bb680c6310c`.
 - Deployer: `0x865e118a3be4FA0760775565fCd31be156e1e3d7` (`signalbond-challenger-unlocked`).
 - Contract receipt: FINALIZED, GenVM SUCCESS, consensus `MAJORITY_AGREE`.
-- Deployed contract source SHA-256: `2E3565C8C2CC8C3A63F1C46929EEEA762D2C755ABE3182AF665E10529936E99D`.
+- Deployed contract source SHA-256: `EB09F44B9956355210BEA77169660F7A745C8871C3167C028B8C1DC609D76668`.
 - No records or custody were migrated from prior deployments.
 - Hosted CI and final frontend deployment are release gates; the exact successful run and production deployment are recorded with the final release report rather than duplicated as mutable values here.
 - Current live non-financial proofs on the prior registry remain historical and are not presented as records on this fresh deployment.
@@ -68,7 +68,7 @@
 
 ## Verification for the current audited release
 
-- Direct Mode/security: 43 passed for the deployed contract source
+- Direct Mode/security: 52 passed for the deployed contract source
 - GenVM lint: `✓ Lint passed (3 checks)`
 - Frontend tests: 36 passed (6 files)
 - Typecheck: PASS

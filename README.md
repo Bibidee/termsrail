@@ -1,13 +1,13 @@
 # TERMSRAIL
 
 Live frontend: https://termsrail.vercel.app  
-Latest reviewed contract: `0x6a1023185e64Ae635EC9474AaF1360E89A845541` (Studionet, chain 61999). Deployment transaction: `0x17f5acc957d8c022ea125f1cb1709a67bf19abbd39f82ccd74023e075bd5fc0f`. Source SHA-256: `2E3565C8C2CC8C3A63F1C46929EEEA762D2C755ABE3182AF665E10529936E99D`. This is a fresh deployment; prior service, action, plan, receipt, escrow and custody records were not migrated.
+Latest reviewed contract: `0x07Ef5B0c8FAeCA0B3C9fFF4fb3CCa9264F46FbC0` (Studionet, chain 61999). Deployment transaction: `0x624ca24baa77efb270dcbdcfa797ba4cedcabb2af3a8bab765727bb680c6310c`. Source SHA-256: `EB09F44B9956355210BEA77169660F7A745C8871C3167C028B8C1DC609D76668`. This is a fresh deployment; prior service, action, plan, receipt, escrow and custody records were not migrated.
 
 TermsRail is a Next.js dApp and GenLayer Intelligent Contract for consensus-backed policy execution gates. Policy snapshot extraction and material policy-change detection use semantic consensus; structured action authorization is deterministic derivation over the accepted snapshot.
 
 ## Escrow correction status
 
-The current custody-enabled contract is deployed at `0x6a1023185e64Ae635EC9474AaF1360E89A845541`. The audited source now binds each escrow to a bounded immutable milestone specification and criteria hash before funding, copies that exact specification into `funding_snapshot`, adjudicates evidence against it, and requires a bounded post-adjudication challenge window before direct release/refund. It also retains immutable funding snapshots, escrow deadlines independent of policy-authorization expiry, bounded dispute response windows, method-specific canonical readbacks, strict finalized-execution sequencing, and a two-party `OTHER` dispute recovery handshake. The previous custody deployment and earlier registries remain deployed and untouched; records and custody are not migrated automatically.
+The current custody-enabled contract is deployed at `0x07Ef5B0c8FAeCA0B3C9fFF4fb3CCa9264F46FbC0`. The audited source now binds each escrow to a bounded immutable milestone specification and criteria hash before funding, copies that exact specification into `funding_snapshot`, adjudicates evidence against it, and requires a bounded post-adjudication challenge window before direct release/refund. It also retains immutable funding snapshots, escrow deadlines independent of policy-authorization expiry, bounded dispute response windows, method-specific canonical readbacks, strict finalized-execution sequencing, and a two-party `OTHER` dispute recovery handshake. The previous custody deployment and earlier registries remain deployed and untouched; records and custody are not migrated automatically.
 
 ## Milestone correction state machine
 
