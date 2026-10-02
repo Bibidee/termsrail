@@ -87,6 +87,12 @@ const termsRailStudionet={...studionet,rpcUrls:{...studionet.rpcUrls,default:{..
 export function clientFor(address: `0x${string}`, provider: Eip1193) { return createClient({ chain: termsRailStudionet, account: address, provider }); }
 export type TransactionPhase='SUBMITTING'|'SUBMITTED'|'WAITING_FOR_FINALIZATION'|'FINALIZED'|'VERIFYING_EXECUTION'|'EXECUTION_VERIFIED'|'SYNCING_CANONICAL_STATE'|'CANONICAL_STATE_FOUND'|'SUCCESS'|'RPC_RETRYING'|'VERIFICATION_DELAYED';
 export type LifecycleEvent={phase:TransactionPhase;hash?:string;attempt?:number;canonicalState?:unknown};
+export type TransactionHashState={phase?:TransactionPhase;hash?:string;action?:string};
+/** Apply a lifecycle event without losing a hash already emitted by an earlier phase. */
+export function applyTransactionLifecycleEvent(previous:TransactionHashState,event:LifecycleEvent,action?:string):TransactionHashState {
+  return {phase:event.phase,hash:event.hash??previous.hash,action:action??previous.action};
+}
+export function transactionExplorerUrl(hash:string):string { return `https://explorer-studio.genlayer.com/tx/${hash}`; }
 export async function waitForCanonicalState<T>({read,predicate,onRetry,maxDurationMs=300000}:{read:()=>Promise<T>;predicate:(value:T)=>boolean;onRetry?:(attempt:number)=>void;maxDurationMs?:number}):Promise<T>{const started=Date.now();let attempt=0;let last:T|undefined;while(Date.now()-started<maxDurationMs){try{last=await read();if(predicate(last))return last;}catch(error){if(Date.now()-started>=maxDurationMs)throw error;}attempt++;onRetry?.(attempt);const delay=attempt<10?1000:attempt<20?2000:4000;await new Promise(resolve=>setTimeout(resolve,delay));}if(last!==undefined)throw new Error('Canonical state synchronization is still in progress.');throw new Error('Canonical state synchronization timed out.');}
 export async function writeAndRead<T>(address: `0x${string}`, provider: Eip1193, functionName: string, args: unknown[], readback: () => Promise<T>, expected: (value: T) => boolean, onPhase?: (event:LifecycleEvent)=>void, onCanonical?: (state:T)=>void, value: bigint = 0n) {
   const client = clientFor(address, provider);
